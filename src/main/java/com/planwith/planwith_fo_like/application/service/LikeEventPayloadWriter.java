@@ -1,6 +1,5 @@
 package com.planwith.planwith_fo_like.application.service;
 
-import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -10,8 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.planwith.planwith_fo_like.domain.event.LikeCreatedEvent;
-import com.planwith.planwith_fo_like.domain.event.LikeRemovedEvent;
+import com.planwith.planwith_fo_like.domain.event.LikeEvent;
 import com.planwith.planwith_fo_like.domain.exception.LikeDomainException;
 
 @Component
@@ -23,48 +21,21 @@ public class LikeEventPayloadWriter {
 		this.objectMapper = objectMapper;
 	}
 
-	public String writeCreated(LikeCreatedEvent event) {
-		return write(toMap(
-				event.eventUuid(),
-				event.likeType().name(),
-				event.targetUuid(),
-				event.targetOwnerUuid(),
-				event.likerUuid(),
-				event.occurredAt(),
-				event.sourceVersion()
-		));
-	}
-
-	public String writeRemoved(LikeRemovedEvent event) {
-		return write(toMap(
-				event.eventUuid(),
-				event.likeType().name(),
-				event.targetUuid(),
-				event.targetOwnerUuid(),
-				event.likerUuid(),
-				event.occurredAt(),
-				event.sourceVersion()
-		));
-	}
-
-	private static Map<String, Object> toMap(
-			UUID eventUuid,
-			String targetType,
-			UUID targetUuid,
-			UUID targetOwnerUuid,
-			UUID likerUuid,
-			Instant occurredAt,
-			long sourceVersion
-	) {
+	public String write(LikeEvent event, UUID targetOwnerUuid, long sourceVersion) {
 		Map<String, Object> payload = new LinkedHashMap<>();
-		payload.put("eventUuid", eventUuid.toString());
-		payload.put("targetType", targetType);
-		payload.put("targetUuid", targetUuid.toString());
+		payload.put("eventId", event.eventId().toString());
+		payload.put("eventUuid", event.eventId().toString());
+		payload.put("eventType", event.eventType().name());
+		payload.put("memberUuid", event.memberUuid().toString());
+		payload.put("likerUuid", event.memberUuid().toString());
+		payload.put("likeUuid", event.likeUuid().toString());
+		payload.put("likeType", event.likeType().name());
+		payload.put("targetType", event.likeType().name());
+		payload.put("targetUuid", event.targetUuid().toString());
 		payload.put("targetOwnerUuid", targetOwnerUuid == null ? null : targetOwnerUuid.toString());
-		payload.put("likerUuid", likerUuid.toString());
-		payload.put("occurredAt", DateTimeFormatter.ISO_INSTANT.format(occurredAt));
+		payload.put("occurredAt", DateTimeFormatter.ISO_INSTANT.format(event.occurredAt()));
 		payload.put("sourceVersion", sourceVersion);
-		return payload;
+		return write(payload);
 	}
 
 	private String write(Map<String, Object> payload) {

@@ -3,21 +3,17 @@ package com.planwith.planwith_fo_like.application.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_like.application.command.AddLikeCommand;
 import com.planwith.planwith_fo_like.application.port.in.AddLikeUseCase;
-import com.planwith.planwith_fo_like.application.port.out.LikeEventOutboxPort;
 import com.planwith.planwith_fo_like.application.port.out.LikeHotCachePort;
 import com.planwith.planwith_fo_like.application.port.out.LikeManagementPort;
-import com.planwith.planwith_fo_like.application.port.out.LikeOutboxMessage;
 import com.planwith.planwith_fo_like.application.port.out.LikeTargetCounterPort;
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
-import com.planwith.planwith_fo_like.domain.event.LikeCreatedEvent;
-import com.planwith.planwith_fo_like.domain.event.LikeEventType;
+import com.planwith.planwith_fo_like.domain.event.LikeEvent;
 import com.planwith.planwith_fo_like.domain.exception.DuplicateLikeException;
 import com.planwith.planwith_fo_like.domain.model.LikeManagement;
 import com.planwith.planwith_fo_like.domain.model.LikeManagementStatus;
@@ -29,8 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class AddLikeService implements AddLikeUseCase {
-
-	private static final String AGGREGATE_TYPE = "LIKE";
 
 	private final LikeTargetCounterPort likeTargetCounterPort;
 	private final LikeHotCachePort likeHotCachePort;
@@ -90,22 +84,19 @@ public class AddLikeService implements AddLikeUseCase {
 
 		private final LikeManagementPort likeManagementPort;
 		private final LikeTargetCounterPort likeTargetCounterPort;
-		private final LikeEventOutboxPort likeEventOutboxPort;
+		private final LikeEventRecorder likeEventRecorder;
 		private final LikeHotCachePort likeHotCachePort;
-		private final LikeEventPayloadWriter payloadWriter;
 
 		public AddLikeWriteService(
 				LikeManagementPort likeManagementPort,
 				LikeTargetCounterPort likeTargetCounterPort,
-				LikeEventOutboxPort likeEventOutboxPort,
-				LikeHotCachePort likeHotCachePort,
-				LikeEventPayloadWriter payloadWriter
+				LikeEventRecorder likeEventRecorder,
+				LikeHotCachePort likeHotCachePort
 		) {
 			this.likeManagementPort = likeManagementPort;
 			this.likeTargetCounterPort = likeTargetCounterPort;
-			this.likeEventOutboxPort = likeEventOutboxPort;
+			this.likeEventRecorder = likeEventRecorder;
 			this.likeHotCachePort = likeHotCachePort;
-			this.payloadWriter = payloadWriter;
 		}
 
 		@Transactional
@@ -131,24 +122,16 @@ public class AddLikeService implements AddLikeUseCase {
 							command.likeType(),
 							now
 					));
+			LikeEvent event = LikeEvent.like(saved, now);
 			LikeTargetCounter counter = likeTargetCounterPort.increment(command.likeType(), command.targetUuid(), now);
-			LikeCreatedEvent event = new LikeCreatedEvent(
-					UUID.randomUUID(),
-					command.likeType(),
-					command.targetUuid(),
-					command.targetOwnerUuid(),
-					command.memberUuid(),
-					now,
-					counter.likeCount()
+			likeEventRecorder.record(event, command.targetOwnerUuid(), counter.likeCount());
+			log.info(
+					"AddLikeService : write : LIKE 이벤트 발행 준비 - eventId={}, likeType={}, targetUuid={}, likeUuid={}",
+					event.eventId(),
+					event.likeType(),
+					event.targetUuid(),
+					event.likeUuid()
 			);
-			likeEventOutboxPort.save(new LikeOutboxMessage(
-					event.eventUuid(),
-					AGGREGATE_TYPE,
-					saved.likeUuid(),
-					LikeEventType.LIKE_CREATED.name(),
-					payloadWriter.writeCreated(event),
-					now
-			));
 			AfterCommitAction.run(() -> {
 				likeHotCachePort.markLiked(command.memberUuid(), command.likeType(), command.targetUuid());
 				likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), counter.likeCount());

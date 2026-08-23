@@ -95,10 +95,10 @@ public class LikeOutboxRelay {
 	}
 
 	private String topicFor(String eventType) {
-		if (LikeEventType.LIKE_REMOVED.name().equals(eventType)) {
+		if (LikeEventType.UNLIKE.name().equals(eventType) || "LIKE_REMOVED".equals(eventType)) {
 			return kafkaProperties.getTopics().getLikeRemoved();
 		}
-		if (!LikeEventType.LIKE_CREATED.name().equals(eventType)) {
+		if (!LikeEventType.LIKE.name().equals(eventType) && !"LIKE_CREATED".equals(eventType)) {
 			log.warn("LikeOutboxRelay : topicFor : 알 수 없는 Outbox eventType이라 like.created로 발행 - eventType={}",
 					eventType);
 		}

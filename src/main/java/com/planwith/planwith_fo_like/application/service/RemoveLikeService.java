@@ -3,21 +3,17 @@ package com.planwith.planwith_fo_like.application.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_like.application.command.RemoveLikeCommand;
 import com.planwith.planwith_fo_like.application.port.in.RemoveLikeUseCase;
-import com.planwith.planwith_fo_like.application.port.out.LikeEventOutboxPort;
 import com.planwith.planwith_fo_like.application.port.out.LikeHotCachePort;
 import com.planwith.planwith_fo_like.application.port.out.LikeManagementPort;
-import com.planwith.planwith_fo_like.application.port.out.LikeOutboxMessage;
 import com.planwith.planwith_fo_like.application.port.out.LikeTargetCounterPort;
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
-import com.planwith.planwith_fo_like.domain.event.LikeEventType;
-import com.planwith.planwith_fo_like.domain.event.LikeRemovedEvent;
+import com.planwith.planwith_fo_like.domain.event.LikeEvent;
 import com.planwith.planwith_fo_like.domain.model.LikeManagement;
 import com.planwith.planwith_fo_like.domain.model.LikeManagementStatus;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
@@ -29,28 +25,23 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class RemoveLikeService implements RemoveLikeUseCase {
 
-	private static final String AGGREGATE_TYPE = "LIKE";
-
 	private final LikeManagementPort likeManagementPort;
 	private final LikeTargetCounterPort likeTargetCounterPort;
-	private final LikeEventOutboxPort likeEventOutboxPort;
+	private final LikeEventRecorder likeEventRecorder;
 	private final LikeHotCachePort likeHotCachePort;
-	private final LikeEventPayloadWriter payloadWriter;
 	private final Clock clock;
 
 	public RemoveLikeService(
 			LikeManagementPort likeManagementPort,
 			LikeTargetCounterPort likeTargetCounterPort,
-			LikeEventOutboxPort likeEventOutboxPort,
+			LikeEventRecorder likeEventRecorder,
 			LikeHotCachePort likeHotCachePort,
-			LikeEventPayloadWriter payloadWriter,
 			Clock clock
 	) {
 		this.likeManagementPort = likeManagementPort;
 		this.likeTargetCounterPort = likeTargetCounterPort;
-		this.likeEventOutboxPort = likeEventOutboxPort;
+		this.likeEventRecorder = likeEventRecorder;
 		this.likeHotCachePort = likeHotCachePort;
-		this.payloadWriter = payloadWriter;
 		this.clock = clock;
 	}
 
@@ -97,24 +88,16 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 			);
 		}
 
+		LikeEvent event = LikeEvent.unlike(deleted.get(), now);
 		LikeTargetCounter counter = likeTargetCounterPort.decrement(command.likeType(), command.targetUuid(), now);
-		LikeRemovedEvent event = new LikeRemovedEvent(
-				UUID.randomUUID(),
-				command.likeType(),
-				command.targetUuid(),
-				command.targetOwnerUuid(),
-				command.memberUuid(),
-				now,
-				counter.likeCount()
+		likeEventRecorder.record(event, command.targetOwnerUuid(), counter.likeCount());
+		log.info(
+				"RemoveLikeService : remove : UNLIKE 이벤트 발행 준비 - eventId={}, likeType={}, targetUuid={}, likeUuid={}",
+				event.eventId(),
+				event.likeType(),
+				event.targetUuid(),
+				event.likeUuid()
 		);
-		likeEventOutboxPort.save(new LikeOutboxMessage(
-				event.eventUuid(),
-				AGGREGATE_TYPE,
-				deleted.get().likeUuid(),
-				LikeEventType.LIKE_REMOVED.name(),
-				payloadWriter.writeRemoved(event),
-				now
-		));
 		refreshHotCache(command, counter.likeCount());
 		log.info("RemoveLikeService : remove : 좋아요 취소 완료 - memberUuid={}, likeUuid={}, likeType={}, likeCount={}",
 				command.memberUuid(), deleted.get().likeUuid(), deleted.get().likeType(), counter.likeCount());
