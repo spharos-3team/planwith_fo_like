@@ -2,7 +2,7 @@ package com.planwith.planwith_fo_like.adapter.in.web;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,31 +24,24 @@ class LikeApiIntegrationTest {
 	private MockMvc mockMvc;
 
 	@Test
-	void addLikeIsIdempotentAndQueryReadsCounter() throws Exception {
+	void putLikeAndDeleteUnlikeAreIdempotentAndSupportRelike() throws Exception {
 		UUID memberUuid = UUID.randomUUID();
 		UUID targetUuid = UUID.randomUUID();
 		UUID ownerUuid = UUID.randomUUID();
-		String body = """
-				{
-				  "targetType": "STORY",
-				  "targetUuid": "%s",
-				  "targetOwnerUuid": "%s"
-				}
-				""".formatted(targetUuid, ownerUuid);
+		String likePath = "/api/v1/likes/STORY/" + targetUuid;
 
-		mockMvc.perform(post("/api/v1/likes")
+		mockMvc.perform(put(likePath)
 						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
+						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
+				.andExpect(jsonPath("$.likeType").value("STORY"))
 				.andExpect(jsonPath("$.likeCount").value(1))
 				.andExpect(jsonPath("$.alreadyApplied").value(false));
 
-		mockMvc.perform(post("/api/v1/likes")
+		mockMvc.perform(put(likePath)
 						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
+						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -68,19 +60,24 @@ class LikeApiIntegrationTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeCount").value(1));
 
-		mockMvc.perform(delete("/api/v1/likes")
+		mockMvc.perform(delete(likePath)
 						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
+						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0))
 				.andExpect(jsonPath("$.alreadyApplied").value(false));
 
-		mockMvc.perform(post("/api/v1/likes")
+		mockMvc.perform(delete(likePath)
+						.header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.liked").value(false))
+				.andExpect(jsonPath("$.likeCount").value(0))
+				.andExpect(jsonPath("$.alreadyApplied").value(true));
+
+		mockMvc.perform(put(likePath)
 						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
+						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -90,81 +87,50 @@ class LikeApiIntegrationTest {
 	@Test
 	void rejectsUnsupportedLikeTypeAndInvalidUuid() throws Exception {
 		UUID memberUuid = UUID.randomUUID();
-		UUID ownerUuid = UUID.randomUUID();
+		UUID targetUuid = UUID.randomUUID();
 
-		mockMvc.perform(post("/api/v1/likes")
-						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{
-								  "targetType": "PLAN",
-								  "targetUuid": "%s",
-								  "targetOwnerUuid": "%s"
-								}
-								""".formatted(UUID.randomUUID(), ownerUuid)))
+		mockMvc.perform(put("/api/v1/likes/PLAN/" + targetUuid)
+						.header("X-Member-UUID", memberUuid))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TYPE"));
 
-		mockMvc.perform(post("/api/v1/likes")
-						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{
-								  "targetType": "STORY",
-								  "targetUuid": "not-uuid",
-								  "targetOwnerUuid": "%s"
-								}
-								""".formatted(ownerUuid)))
+		mockMvc.perform(put("/api/v1/likes/STORY/not-uuid")
+						.header("X-Member-UUID", memberUuid))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TARGET"));
 
-		mockMvc.perform(post("/api/v1/likes")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("""
-								{
-								  "targetType": "STORY",
-								  "targetUuid": "%s",
-								  "targetOwnerUuid": "%s"
-								}
-								""".formatted(UUID.randomUUID(), ownerUuid)))
+		mockMvc.perform(put("/api/v1/likes/STORY/" + targetUuid))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 	}
 
 	@Test
-	void storyAndCommentLikesAreValidatedIndependently() throws Exception {
+	void storyAndCommentLikesAreCommandedIndependently() throws Exception {
 		UUID memberUuid = UUID.randomUUID();
 		UUID targetUuid = UUID.randomUUID();
-		UUID ownerUuid = UUID.randomUUID();
-		String storyBody = """
-				{
-				  "targetType": "STORY",
-				  "targetUuid": "%s",
-				  "targetOwnerUuid": "%s"
-				}
-				""".formatted(targetUuid, ownerUuid);
-		String commentBody = """
-				{
-				  "targetType": "COMMENT",
-				  "targetUuid": "%s",
-				  "targetOwnerUuid": "%s"
-				}
-				""".formatted(targetUuid, ownerUuid);
 
-		mockMvc.perform(post("/api/v1/likes")
-						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(storyBody))
+		mockMvc.perform(put("/api/v1/likes/STORY/" + targetUuid)
+						.header("X-Member-UUID", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("STORY"))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
-		mockMvc.perform(post("/api/v1/likes")
-						.header("X-Member-UUID", memberUuid)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(commentBody))
+		mockMvc.perform(put("/api/v1/likes/COMMENT/" + targetUuid)
+						.header("X-Member-UUID", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("COMMENT"))
+				.andExpect(jsonPath("$.likeCount").value(1));
+
+		mockMvc.perform(delete("/api/v1/likes/STORY/" + targetUuid)
+						.header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.liked").value(false))
+				.andExpect(jsonPath("$.likeCount").value(0));
+
+		mockMvc.perform(get("/api/v1/likes/count")
+						.param("targetType", "COMMENT")
+						.param("targetUuid", targetUuid.toString()))
+				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeCount").value(1));
 	}
 }

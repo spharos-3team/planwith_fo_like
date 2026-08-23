@@ -53,6 +53,8 @@ class LikeCommonValidatorTest {
 				.isInstanceOf(InvalidLikeTargetException.class);
 		assertThatThrownBy(() -> LikeCommonValidator.parseUuid("not-uuid", "대상 식별자가 올바르지 않습니다."))
 				.isInstanceOf(InvalidLikeTargetException.class);
+		assertThat(LikeCommonValidator.parseOptionalUuid(null, "대상 작성자 식별자가 올바르지 않습니다.")).isNull();
+		assertThat(LikeCommonValidator.parseOptionalUuid(" ", "대상 작성자 식별자가 올바르지 않습니다.")).isNull();
 	}
 
 	@Test

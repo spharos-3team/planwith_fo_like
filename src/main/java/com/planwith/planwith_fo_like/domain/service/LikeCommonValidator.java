@@ -66,6 +66,13 @@ public final class LikeCommonValidator {
 		}
 	}
 
+	public static UUID parseOptionalUuid(String rawUuid, String message) {
+		if (rawUuid == null || rawUuid.isBlank()) {
+			return null;
+		}
+		return parseUuid(rawUuid, message);
+	}
+
 	public static LikeManagementStatus resolveStatus(Optional<LikeManagement> existing) {
 		return LikeManagementStatus.from(existing);
 	}

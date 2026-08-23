@@ -57,12 +57,7 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 	@Override
 	@Transactional
 	public LikeCommandResult remove(RemoveLikeCommand command) {
-		LikeCommonValidator.validateCommand(
-				command.memberUuid(),
-				command.likeType(),
-				command.targetUuid(),
-				command.targetOwnerUuid()
-		);
+		LikeCommonValidator.validate(command.memberUuid(), command.likeType(), command.targetUuid());
 		log.info("RemoveLikeService : remove : 좋아요 취소 처리 시작 - memberUuid={}, likeType={}, targetUuid={}",
 				command.memberUuid(), command.likeType(), command.targetUuid());
 
