@@ -11,6 +11,10 @@ public interface LikeManagementPort {
 
 	LikeManagement insert(LikeManagement like);
 
+	LikeManagement restoreDeleted(LikeManagement like, Instant now);
+
+	Optional<LikeManagement> findByMemberAndTarget(UUID memberUuid, LikeType likeType, UUID targetUuid);
+
 	Optional<LikeManagement> findActiveByMemberAndTarget(UUID memberUuid, LikeType likeType, UUID targetUuid);
 
 	boolean existsActiveByMemberAndTarget(UUID memberUuid, LikeType likeType, UUID targetUuid);

@@ -9,6 +9,7 @@ import com.planwith.planwith_fo_like.application.port.out.LikeTargetCounterPort;
 import com.planwith.planwith_fo_like.application.query.GetTargetLikeCountQuery;
 import com.planwith.planwith_fo_like.application.query.LikeCountView;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,6 +31,7 @@ public class GetTargetLikeCountService implements GetTargetLikeCountQueryUseCase
 	@Override
 	@Transactional(readOnly = true)
 	public LikeCountView get(GetTargetLikeCountQuery query) {
+		LikeCommonValidator.validate(query.likeType(), query.targetUuid());
 		log.debug("GetTargetLikeCountService : get : 대상 좋아요 수 조회 - likeType={}, targetUuid={}",
 				query.likeType(), query.targetUuid());
 		long likeCount = likeHotCachePort.findCount(query.likeType(), query.targetUuid())

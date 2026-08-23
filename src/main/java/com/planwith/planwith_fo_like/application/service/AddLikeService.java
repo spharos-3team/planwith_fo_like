@@ -2,6 +2,7 @@ package com.planwith.planwith_fo_like.application.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -19,8 +20,9 @@ import com.planwith.planwith_fo_like.domain.event.LikeCreatedEvent;
 import com.planwith.planwith_fo_like.domain.event.LikeEventType;
 import com.planwith.planwith_fo_like.domain.exception.DuplicateLikeException;
 import com.planwith.planwith_fo_like.domain.model.LikeManagement;
+import com.planwith.planwith_fo_like.domain.model.LikeManagementStatus;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
-import com.planwith.planwith_fo_like.domain.service.LikeTargetValidator;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +51,12 @@ public class AddLikeService implements AddLikeUseCase {
 
 	@Override
 	public LikeCommandResult add(AddLikeCommand command) {
-		LikeTargetValidator.validate(command.memberUuid(), command.likeType(), command.targetUuid());
+		LikeCommonValidator.validateCommand(
+				command.memberUuid(),
+				command.likeType(),
+				command.targetUuid(),
+				command.targetOwnerUuid()
+		);
 		log.info("AddLikeService : add : 좋아요 처리 시작 - memberUuid={}, likeType={}, targetUuid={}",
 				command.memberUuid(), command.likeType(), command.targetUuid());
 		likeHotCachePort.tryAcquireDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
@@ -108,12 +115,27 @@ public class AddLikeService implements AddLikeUseCase {
 
 		@Transactional
 		LikeCommandResult write(AddLikeCommand command, Instant now) {
-			LikeManagement inserted = likeManagementPort.insert(LikeManagement.create(
+			Optional<LikeManagement> existing = likeManagementPort.findByMemberAndTarget(
 					command.memberUuid(),
-					command.targetUuid(),
 					command.likeType(),
-					now
-			));
+					command.targetUuid()
+			);
+			LikeManagementStatus status = LikeCommonValidator.requireAddable(existing);
+			log.info(
+					"AddLikeService : write : 좋아요 상태 판정 - status={}, memberUuid={}, likeType={}, targetUuid={}",
+					status,
+					command.memberUuid(),
+					command.likeType(),
+					command.targetUuid()
+			);
+			LikeManagement saved = status.isReLike()
+					? likeManagementPort.restoreDeleted(existing.orElseThrow(), now)
+					: likeManagementPort.insert(LikeManagement.create(
+							command.memberUuid(),
+							command.targetUuid(),
+							command.likeType(),
+							now
+					));
 			LikeTargetCounter counter = likeTargetCounterPort.increment(command.likeType(), command.targetUuid(), now);
 			LikeCreatedEvent event = new LikeCreatedEvent(
 					UUID.randomUUID(),
@@ -127,7 +149,7 @@ public class AddLikeService implements AddLikeUseCase {
 			likeEventOutboxPort.save(new LikeOutboxMessage(
 					event.eventUuid(),
 					AGGREGATE_TYPE,
-					inserted.likeUuid(),
+					saved.likeUuid(),
 					LikeEventType.LIKE_CREATED.name(),
 					payloadWriter.writeCreated(event),
 					now
@@ -137,8 +159,14 @@ public class AddLikeService implements AddLikeUseCase {
 				likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), counter.likeCount());
 				likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
 			});
-			log.info("AddLikeService : write : 좋아요 생성 완료 - memberUuid={}, likeUuid={}, likeType={}, likeCount={}",
-					command.memberUuid(), inserted.likeUuid(), inserted.likeType(), counter.likeCount());
+			log.info(
+					"AddLikeService : write : 좋아요 처리 완료 - status={}, memberUuid={}, likeUuid={}, likeType={}, likeCount={}",
+					status,
+					command.memberUuid(),
+					saved.likeUuid(),
+					saved.likeType(),
+					counter.likeCount()
+			);
 			return new LikeCommandResult(
 					command.memberUuid(),
 					command.likeType(),
