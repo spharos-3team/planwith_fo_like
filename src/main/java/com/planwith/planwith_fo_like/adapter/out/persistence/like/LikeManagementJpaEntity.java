@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,13 +15,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-/**
- * 좋아요 관계 원본 테이블.
- * UNIQUE(member_uuid, target_type, target_uuid)는 최종 중복 좋아요 방어선이다.
- */
 @Entity
 @Table(
 		name = "like_management",
@@ -29,8 +26,12 @@ import jakarta.persistence.UniqueConstraint;
 				@UniqueConstraint(name = "uk_like_management_uuid", columnNames = "like_uuid"),
 				@UniqueConstraint(
 						name = "uk_like_management_member_target",
-						columnNames = {"member_uuid", "target_type", "target_uuid"}
+						columnNames = {"member_uuid", "like_type", "target_uuid"}
 				)
+		},
+		indexes = {
+				@Index(name = "idx_like_management_target", columnList = "like_type, target_uuid, deleted_at"),
+				@Index(name = "idx_like_management_member", columnList = "member_uuid, deleted_at, updated_at")
 		}
 )
 class LikeManagementJpaEntity {
@@ -48,20 +49,22 @@ class LikeManagementJpaEntity {
 	@Column(name = "member_uuid", nullable = false, length = 36)
 	private UUID memberUuid;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "target_type", nullable = false, length = 20)
-	private TargetType targetType;
-
 	@JdbcTypeCode(SqlTypes.CHAR)
 	@Column(name = "target_uuid", nullable = false, length = 36)
 	private UUID targetUuid;
 
-	@JdbcTypeCode(SqlTypes.CHAR)
-	@Column(name = "target_owner_uuid", nullable = false, length = 36)
-	private UUID targetOwnerUuid;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "like_type", nullable = false, length = 20)
+	private LikeType likeType;
 
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
+
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt;
+
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
 
 	protected LikeManagementJpaEntity() {
 	}
@@ -69,17 +72,24 @@ class LikeManagementJpaEntity {
 	LikeManagementJpaEntity(
 			UUID likeUuid,
 			UUID memberUuid,
-			TargetType targetType,
 			UUID targetUuid,
-			UUID targetOwnerUuid,
-			Instant createdAt
+			LikeType likeType,
+			Instant createdAt,
+			Instant updatedAt,
+			Instant deletedAt
 	) {
 		this.likeUuid = likeUuid;
 		this.memberUuid = memberUuid;
-		this.targetType = targetType;
 		this.targetUuid = targetUuid;
-		this.targetOwnerUuid = targetOwnerUuid;
+		this.likeType = likeType;
 		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.deletedAt = deletedAt;
+	}
+
+	void apply(Instant updatedAt, Instant deletedAt) {
+		this.updatedAt = updatedAt;
+		this.deletedAt = deletedAt;
 	}
 
 	Long likeId() {
@@ -94,19 +104,23 @@ class LikeManagementJpaEntity {
 		return memberUuid;
 	}
 
-	TargetType targetType() {
-		return targetType;
-	}
-
 	UUID targetUuid() {
 		return targetUuid;
 	}
 
-	UUID targetOwnerUuid() {
-		return targetOwnerUuid;
+	LikeType likeType() {
+		return likeType;
 	}
 
 	Instant createdAt() {
 		return createdAt;
+	}
+
+	Instant updatedAt() {
+		return updatedAt;
+	}
+
+	Instant deletedAt() {
+		return deletedAt;
 	}
 }

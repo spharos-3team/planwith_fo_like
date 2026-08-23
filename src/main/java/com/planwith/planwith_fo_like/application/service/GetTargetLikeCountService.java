@@ -30,16 +30,16 @@ public class GetTargetLikeCountService implements GetTargetLikeCountQueryUseCase
 	@Override
 	@Transactional(readOnly = true)
 	public LikeCountView get(GetTargetLikeCountQuery query) {
-		log.debug("GetTargetLikeCountService : get : 대상 좋아요 수 조회 - targetType={}, targetUuid={}",
-				query.targetType(), query.targetUuid());
-		long likeCount = likeHotCachePort.findCount(query.targetType(), query.targetUuid())
+		log.debug("GetTargetLikeCountService : get : 대상 좋아요 수 조회 - likeType={}, targetUuid={}",
+				query.likeType(), query.targetUuid());
+		long likeCount = likeHotCachePort.findCount(query.likeType(), query.targetUuid())
 				.orElseGet(() -> {
-					long count = likeTargetCounterPort.findByTarget(query.targetType(), query.targetUuid())
+					long count = likeTargetCounterPort.findByTarget(query.likeType(), query.targetUuid())
 							.map(LikeTargetCounter::likeCount)
 							.orElse(0L);
-					likeHotCachePort.saveCount(query.targetType(), query.targetUuid(), count);
+					likeHotCachePort.saveCount(query.likeType(), query.targetUuid(), count);
 					return count;
 				});
-		return new LikeCountView(query.targetType(), query.targetUuid(), likeCount);
+		return new LikeCountView(query.likeType(), query.targetUuid(), likeCount);
 	}
 }

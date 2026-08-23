@@ -8,23 +8,24 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import jakarta.persistence.LockModeType;
 
-public interface SpringDataLikeTargetCounterRepository extends JpaRepository<LikeTargetCounterJpaEntity, Long> {
+public interface SpringDataLikeTargetCounterRepository
+		extends JpaRepository<LikeTargetCounterJpaEntity, LikeTargetCounterId> {
 
-	Optional<LikeTargetCounterJpaEntity> findByTargetTypeAndTargetUuid(TargetType targetType, UUID targetUuid);
+	Optional<LikeTargetCounterJpaEntity> findByLikeTypeAndTargetUuid(LikeType likeType, UUID targetUuid);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("""
 			select counter
 			from LikeTargetCounterJpaEntity counter
-			where counter.targetType = :targetType
+			where counter.likeType = :likeType
 				and counter.targetUuid = :targetUuid
 			""")
 	Optional<LikeTargetCounterJpaEntity> findByTargetForUpdate(
-			@Param("targetType") TargetType targetType,
+			@Param("likeType") LikeType likeType,
 			@Param("targetUuid") UUID targetUuid
 	);
 }

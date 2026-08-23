@@ -1,6 +1,6 @@
 package com.planwith.planwith_fo_like.adapter.out.persistence.like;
 
-import com.planwith.planwith_fo_like.domain.model.LikeRelation;
+import com.planwith.planwith_fo_like.domain.model.LikeManagement;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
 
 final class LikePersistenceMapper {
@@ -8,36 +8,37 @@ final class LikePersistenceMapper {
 	private LikePersistenceMapper() {
 	}
 
-	static LikeManagementJpaEntity toEntity(LikeRelation relation) {
+	static LikeManagementJpaEntity toEntity(LikeManagement like) {
 		return new LikeManagementJpaEntity(
-				relation.likeUuid(),
-				relation.memberUuid(),
-				relation.targetType(),
-				relation.targetUuid(),
-				relation.targetOwnerUuid(),
-				relation.createdAt()
+				like.likeUuid(),
+				like.memberUuid(),
+				like.targetUuid(),
+				like.likeType(),
+				like.createdAt(),
+				like.updatedAt(),
+				like.deletedAt()
 		);
 	}
 
-	static LikeRelation toDomain(LikeManagementJpaEntity entity) {
-		return LikeRelation.restore(
+	static LikeManagement toDomain(LikeManagementJpaEntity entity) {
+		return LikeManagement.restore(
 				entity.likeId(),
 				entity.likeUuid(),
 				entity.memberUuid(),
-				entity.targetType(),
 				entity.targetUuid(),
-				entity.targetOwnerUuid(),
-				entity.createdAt()
+				entity.likeType(),
+				entity.createdAt(),
+				entity.updatedAt(),
+				entity.deletedAt()
 		);
 	}
 
 	static LikeTargetCounter toDomain(LikeTargetCounterJpaEntity entity) {
 		return LikeTargetCounter.restore(
-				entity.counterId(),
-				entity.targetType(),
+				entity.likeType(),
 				entity.targetUuid(),
 				entity.likeCount(),
-				entity.version()
+				entity.updatedAt()
 		);
 	}
 }

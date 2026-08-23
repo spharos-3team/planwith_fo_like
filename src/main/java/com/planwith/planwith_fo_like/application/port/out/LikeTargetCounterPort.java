@@ -1,16 +1,17 @@
 package com.planwith.planwith_fo_like.application.port.out;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 public interface LikeTargetCounterPort {
 
-	LikeTargetCounter increment(TargetType targetType, UUID targetUuid);
+	LikeTargetCounter increment(LikeType likeType, UUID targetUuid, Instant now);
 
-	LikeTargetCounter decrement(TargetType targetType, UUID targetUuid);
+	LikeTargetCounter decrement(LikeType likeType, UUID targetUuid, Instant now);
 
-	Optional<LikeTargetCounter> findByTarget(TargetType targetType, UUID targetUuid);
+	Optional<LikeTargetCounter> findByTarget(LikeType likeType, UUID targetUuid);
 }

@@ -28,7 +28,7 @@ import com.planwith.planwith_fo_like.application.port.in.AddLikeUseCase;
 import com.planwith.planwith_fo_like.application.port.in.GetTargetLikeCountQueryUseCase;
 import com.planwith.planwith_fo_like.application.query.GetTargetLikeCountQuery;
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 /**
  * 동일 Like 동시 요청은 Redis가 아니라 MySQL UNIQUE + 멱등 처리가 최종 방어선이다.
@@ -64,7 +64,7 @@ class LikeConcurrencyTestcontainersTest {
 		UUID memberUuid = UUID.randomUUID();
 		UUID targetUuid = UUID.randomUUID();
 		UUID ownerUuid = UUID.randomUUID();
-		AddLikeCommand command = new AddLikeCommand(memberUuid, TargetType.STORY, targetUuid, ownerUuid);
+		AddLikeCommand command = new AddLikeCommand(memberUuid, LikeType.STORY, targetUuid, ownerUuid);
 
 		int threadCount = 16;
 		ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -90,7 +90,7 @@ class LikeConcurrencyTestcontainersTest {
 			assertThat(results).hasSize(threadCount);
 			assertThat(results.stream().filter(result -> !result.alreadyApplied()).count()).isEqualTo(1);
 			assertThat(results).allMatch(LikeCommandResult::liked);
-			assertThat(getTargetLikeCountQueryUseCase.get(new GetTargetLikeCountQuery(TargetType.STORY, targetUuid))
+			assertThat(getTargetLikeCountQueryUseCase.get(new GetTargetLikeCountQuery(LikeType.STORY, targetUuid))
 					.likeCount()).isEqualTo(1);
 		} finally {
 			executor.shutdownNow();

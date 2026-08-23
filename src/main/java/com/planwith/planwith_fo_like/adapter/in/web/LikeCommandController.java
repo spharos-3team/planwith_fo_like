@@ -18,7 +18,7 @@ import com.planwith.planwith_fo_like.application.command.RemoveLikeCommand;
 import com.planwith.planwith_fo_like.application.port.in.AddLikeUseCase;
 import com.planwith.planwith_fo_like.application.port.in.RemoveLikeUseCase;
 import com.planwith.planwith_fo_like.domain.exception.InvalidLikeTargetException;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,7 +51,7 @@ public class LikeCommandController {
 				memberUuid, request.targetUuid());
 		LikeCommandResponse response = LikeCommandResponse.from(addLikeUseCase.add(new AddLikeCommand(
 				memberUuid,
-				parseTargetType(request.targetType()),
+				parseLikeType(request.targetType()),
 				parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
 				parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
 		)));
@@ -71,7 +71,7 @@ public class LikeCommandController {
 				memberUuid, request.targetUuid());
 		LikeCommandResponse response = LikeCommandResponse.from(removeLikeUseCase.remove(new RemoveLikeCommand(
 				memberUuid,
-				parseTargetType(request.targetType()),
+				parseLikeType(request.targetType()),
 				parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
 				parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
 		)));
@@ -80,9 +80,9 @@ public class LikeCommandController {
 		return ResponseEntity.ok(response);
 	}
 
-	private static TargetType parseTargetType(String rawType) {
+	private static LikeType parseLikeType(String rawType) {
 		try {
-			return TargetType.valueOf(rawType.trim().toUpperCase());
+			return LikeType.valueOf(rawType.trim().toUpperCase());
 		} catch (IllegalArgumentException exception) {
 			throw new InvalidLikeTargetException("지원하지 않는 좋아요 대상 타입입니다.");
 		}

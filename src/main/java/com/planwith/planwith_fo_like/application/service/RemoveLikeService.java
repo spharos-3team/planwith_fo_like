@@ -12,13 +12,13 @@ import com.planwith.planwith_fo_like.application.command.RemoveLikeCommand;
 import com.planwith.planwith_fo_like.application.port.in.RemoveLikeUseCase;
 import com.planwith.planwith_fo_like.application.port.out.LikeEventOutboxPort;
 import com.planwith.planwith_fo_like.application.port.out.LikeHotCachePort;
+import com.planwith.planwith_fo_like.application.port.out.LikeManagementPort;
 import com.planwith.planwith_fo_like.application.port.out.LikeOutboxMessage;
-import com.planwith.planwith_fo_like.application.port.out.LikeRelationPort;
 import com.planwith.planwith_fo_like.application.port.out.LikeTargetCounterPort;
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
 import com.planwith.planwith_fo_like.domain.event.LikeEventType;
 import com.planwith.planwith_fo_like.domain.event.LikeRemovedEvent;
-import com.planwith.planwith_fo_like.domain.model.LikeRelation;
+import com.planwith.planwith_fo_like.domain.model.LikeManagement;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
 import com.planwith.planwith_fo_like.domain.service.LikeTargetValidator;
 
@@ -30,7 +30,7 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 
 	private static final String AGGREGATE_TYPE = "LIKE";
 
-	private final LikeRelationPort likeRelationPort;
+	private final LikeManagementPort likeManagementPort;
 	private final LikeTargetCounterPort likeTargetCounterPort;
 	private final LikeEventOutboxPort likeEventOutboxPort;
 	private final LikeHotCachePort likeHotCachePort;
@@ -38,14 +38,14 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 	private final Clock clock;
 
 	public RemoveLikeService(
-			LikeRelationPort likeRelationPort,
+			LikeManagementPort likeManagementPort,
 			LikeTargetCounterPort likeTargetCounterPort,
 			LikeEventOutboxPort likeEventOutboxPort,
 			LikeHotCachePort likeHotCachePort,
 			LikeEventPayloadWriter payloadWriter,
 			Clock clock
 	) {
-		this.likeRelationPort = likeRelationPort;
+		this.likeManagementPort = likeManagementPort;
 		this.likeTargetCounterPort = likeTargetCounterPort;
 		this.likeEventOutboxPort = likeEventOutboxPort;
 		this.likeHotCachePort = likeHotCachePort;
@@ -56,14 +56,16 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 	@Override
 	@Transactional
 	public LikeCommandResult remove(RemoveLikeCommand command) {
-		LikeTargetValidator.validate(command.targetType(), command.targetUuid(), command.targetOwnerUuid());
-		log.info("RemoveLikeService : remove : 좋아요 취소 처리 시작 - memberUuid={}, targetType={}, targetUuid={}",
-				command.memberUuid(), command.targetType(), command.targetUuid());
+		LikeTargetValidator.validate(command.memberUuid(), command.likeType(), command.targetUuid());
+		log.info("RemoveLikeService : remove : 좋아요 취소 처리 시작 - memberUuid={}, likeType={}, targetUuid={}",
+				command.memberUuid(), command.likeType(), command.targetUuid());
 
-		Optional<LikeRelation> deleted = likeRelationPort.deleteByMemberAndTarget(
+		Instant now = clock.instant();
+		Optional<LikeManagement> deleted = likeManagementPort.markDeletedByMemberAndTarget(
 				command.memberUuid(),
-				command.targetType(),
-				command.targetUuid()
+				command.likeType(),
+				command.targetUuid(),
+				now
 		);
 		if (deleted.isEmpty()) {
 			long likeCount = currentCount(command);
@@ -72,7 +74,7 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 					command.memberUuid(), command.targetUuid(), likeCount);
 			return new LikeCommandResult(
 					command.memberUuid(),
-					command.targetType(),
+					command.likeType(),
 					command.targetUuid(),
 					false,
 					likeCount,
@@ -80,16 +82,15 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 			);
 		}
 
-		LikeTargetCounter counter = likeTargetCounterPort.decrement(command.targetType(), command.targetUuid());
-		Instant now = clock.instant();
+		LikeTargetCounter counter = likeTargetCounterPort.decrement(command.likeType(), command.targetUuid(), now);
 		LikeRemovedEvent event = new LikeRemovedEvent(
 				UUID.randomUUID(),
-				command.targetType(),
+				command.likeType(),
 				command.targetUuid(),
-				deleted.get().targetOwnerUuid(),
+				command.targetOwnerUuid(),
 				command.memberUuid(),
 				now,
-				counter.version()
+				counter.likeCount()
 		);
 		likeEventOutboxPort.save(new LikeOutboxMessage(
 				event.eventUuid(),
@@ -100,11 +101,11 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 				now
 		));
 		refreshHotCache(command, counter.likeCount());
-		log.info("RemoveLikeService : remove : 좋아요 취소 완료 - memberUuid={}, likeUuid={}, likeCount={}, sourceVersion={}",
-				command.memberUuid(), deleted.get().likeUuid(), counter.likeCount(), counter.version());
+		log.info("RemoveLikeService : remove : 좋아요 취소 완료 - memberUuid={}, likeUuid={}, likeType={}, likeCount={}",
+				command.memberUuid(), deleted.get().likeUuid(), deleted.get().likeType(), counter.likeCount());
 		return new LikeCommandResult(
 				command.memberUuid(),
-				command.targetType(),
+				command.likeType(),
 				command.targetUuid(),
 				false,
 				counter.likeCount(),
@@ -113,16 +114,16 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 	}
 
 	private long currentCount(RemoveLikeCommand command) {
-		return likeTargetCounterPort.findByTarget(command.targetType(), command.targetUuid())
+		return likeTargetCounterPort.findByTarget(command.likeType(), command.targetUuid())
 				.map(LikeTargetCounter::likeCount)
 				.orElse(0L);
 	}
 
 	private void refreshHotCache(RemoveLikeCommand command, long likeCount) {
 		AfterCommitAction.run(() -> {
-			likeHotCachePort.markUnliked(command.memberUuid(), command.targetType(), command.targetUuid());
-			likeHotCachePort.saveCount(command.targetType(), command.targetUuid(), likeCount);
-			likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.targetType(), command.targetUuid());
+			likeHotCachePort.markUnliked(command.memberUuid(), command.likeType(), command.targetUuid());
+			likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), likeCount);
+			likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
 		});
 	}
 }

@@ -5,15 +5,25 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 public interface SpringDataLikeManagementRepository extends JpaRepository<LikeManagementJpaEntity, Long> {
 
-	boolean existsByMemberUuidAndTargetTypeAndTargetUuid(UUID memberUuid, TargetType targetType, UUID targetUuid);
-
-	Optional<LikeManagementJpaEntity> findByMemberUuidAndTargetTypeAndTargetUuid(
+	Optional<LikeManagementJpaEntity> findByMemberUuidAndLikeTypeAndTargetUuid(
 			UUID memberUuid,
-			TargetType targetType,
+			LikeType likeType,
+			UUID targetUuid
+	);
+
+	Optional<LikeManagementJpaEntity> findByMemberUuidAndLikeTypeAndTargetUuidAndDeletedAtIsNull(
+			UUID memberUuid,
+			LikeType likeType,
+			UUID targetUuid
+	);
+
+	boolean existsByMemberUuidAndLikeTypeAndTargetUuidAndDeletedAtIsNull(
+			UUID memberUuid,
+			LikeType likeType,
 			UUID targetUuid
 	);
 }
