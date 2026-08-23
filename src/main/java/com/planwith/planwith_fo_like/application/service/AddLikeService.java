@@ -53,7 +53,8 @@ public class AddLikeService implements AddLikeUseCase {
 			return addLikeWriteService.write(command, clock.instant());
 		} catch (DuplicateLikeException exception) {
 			long likeCount = currentCount(command);
-			refreshHotCache(command, likeCount);
+			likeHotCachePort.markLiked(command.memberUuid(), command.likeType(), command.targetUuid());
+			likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
 			log.info("AddLikeService : add : 중복 좋아요 UNIQUE 멱등 처리 - memberUuid={}, targetUuid={}, likeCount={}",
 					command.memberUuid(), command.targetUuid(), likeCount);
 			return new LikeCommandResult(
@@ -68,15 +69,10 @@ public class AddLikeService implements AddLikeUseCase {
 	}
 
 	private long currentCount(AddLikeCommand command) {
-		return likeTargetCounterPort.findByTarget(command.likeType(), command.targetUuid())
-				.map(LikeTargetCounter::likeCount)
-				.orElse(0L);
-	}
-
-	private void refreshHotCache(AddLikeCommand command, long likeCount) {
-		likeHotCachePort.markLiked(command.memberUuid(), command.likeType(), command.targetUuid());
-		likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), likeCount);
-		likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
+		return likeHotCachePort.findCount(command.likeType(), command.targetUuid())
+				.orElseGet(() -> likeTargetCounterPort.findByTarget(command.likeType(), command.targetUuid())
+						.map(LikeTargetCounter::likeCount)
+						.orElse(0L));
 	}
 
 	@Service
@@ -123,8 +119,8 @@ public class AddLikeService implements AddLikeUseCase {
 							now
 					));
 			LikeEvent event = LikeEvent.like(saved, now);
-			LikeTargetCounter counter = likeTargetCounterPort.increment(command.likeType(), command.targetUuid(), now);
-			likeEventRecorder.record(event, command.targetOwnerUuid(), counter.likeCount());
+			long projectedCount = currentCount(command) + 1;
+			likeEventRecorder.record(event, command.targetOwnerUuid(), projectedCount);
 			log.info(
 					"AddLikeService : write : LIKE 이벤트 발행 준비 - eventId={}, likeType={}, targetUuid={}, likeUuid={}",
 					event.eventId(),
@@ -134,7 +130,7 @@ public class AddLikeService implements AddLikeUseCase {
 			);
 			AfterCommitAction.run(() -> {
 				likeHotCachePort.markLiked(command.memberUuid(), command.likeType(), command.targetUuid());
-				likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), counter.likeCount());
+				likeHotCachePort.saveCount(command.likeType(), command.targetUuid(), projectedCount);
 				likeHotCachePort.releaseDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());
 			});
 			log.info(
@@ -143,16 +139,23 @@ public class AddLikeService implements AddLikeUseCase {
 					command.memberUuid(),
 					saved.likeUuid(),
 					saved.likeType(),
-					counter.likeCount()
+					projectedCount
 			);
 			return new LikeCommandResult(
 					command.memberUuid(),
 					command.likeType(),
 					command.targetUuid(),
 					true,
-					counter.likeCount(),
+					projectedCount,
 					false
 			);
+		}
+
+		private long currentCount(AddLikeCommand command) {
+			return likeHotCachePort.findCount(command.likeType(), command.targetUuid())
+					.orElseGet(() -> likeTargetCounterPort.findByTarget(command.likeType(), command.targetUuid())
+							.map(LikeTargetCounter::likeCount)
+							.orElse(0L));
 		}
 	}
 }
