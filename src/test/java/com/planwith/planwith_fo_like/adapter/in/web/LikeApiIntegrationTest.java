@@ -47,17 +47,15 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.likeCount").value(1))
 				.andExpect(jsonPath("$.alreadyApplied").value(true));
 
-		mockMvc.perform(get("/api/v1/likes/me")
-						.header("X-Member-UUID", memberUuid)
-						.param("targetType", "STORY")
-						.param("targetUuid", targetUuid.toString()))
+		mockMvc.perform(get(likePath + "/me")
+						.header("X-Member-UUID", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true));
 
-		mockMvc.perform(get("/api/v1/likes/count")
-						.param("targetType", "STORY")
-						.param("targetUuid", targetUuid.toString()))
+		mockMvc.perform(get(likePath + "/count"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.targetUuid").value(targetUuid.toString()))
+				.andExpect(jsonPath("$.likeType").value("STORY"))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
 		mockMvc.perform(delete(likePath)
@@ -127,10 +125,48 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0));
 
-		mockMvc.perform(get("/api/v1/likes/count")
-						.param("targetType", "COMMENT")
-						.param("targetUuid", targetUuid.toString()))
+		mockMvc.perform(get("/api/v1/likes/COMMENT/" + targetUuid + "/count"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.likeType").value("COMMENT"))
+				.andExpect(jsonPath("$.likeCount").value(1));
+	}
+
+	@Test
+	void queryStatusAndCountForInitialRender() throws Exception {
+		UUID memberUuid = UUID.randomUUID();
+		UUID targetUuid = UUID.randomUUID();
+		String queryBase = "/api/v1/likes/STORY/" + targetUuid;
+
+		mockMvc.perform(get(queryBase + "/me")
+						.header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.liked").value(false));
+
+		mockMvc.perform(get(queryBase + "/count"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.targetUuid").value(targetUuid.toString()))
+				.andExpect(jsonPath("$.likeType").value("STORY"))
+				.andExpect(jsonPath("$.likeCount").value(0));
+
+		mockMvc.perform(put(queryBase)
+						.header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get(queryBase + "/me")
+						.header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.liked").value(true));
+
+		mockMvc.perform(get(queryBase + "/count"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeCount").value(1));
+
+		mockMvc.perform(get(queryBase + "/me"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+		mockMvc.perform(get("/api/v1/likes/PLAN/" + targetUuid + "/count"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TYPE"));
 	}
 }

@@ -9,12 +9,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "대상 좋아요 수 응답")
 public record LikeCountResponse(
-		LikeType likeType,
 		UUID targetUuid,
+		LikeType likeType,
 		long likeCount
 ) {
 
 	public static LikeCountResponse from(LikeCountView view) {
-		return new LikeCountResponse(view.likeType(), view.targetUuid(), view.likeCount());
+		return new LikeCountResponse(view.targetUuid(), view.likeType(), view.likeCount());
 	}
 }

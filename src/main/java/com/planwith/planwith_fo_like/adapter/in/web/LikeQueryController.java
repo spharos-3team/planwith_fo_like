@@ -4,9 +4,9 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.planwith.planwith_fo_like.adapter.in.web.dto.LikeCountResponse;
@@ -16,6 +16,7 @@ import com.planwith.planwith_fo_like.application.port.in.GetTargetLikeCountQuery
 import com.planwith.planwith_fo_like.application.query.GetMyLikeStatusQuery;
 import com.planwith.planwith_fo_like.application.query.GetTargetLikeCountQuery;
 import com.planwith.planwith_fo_like.domain.model.LikeType;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,34 +39,41 @@ public class LikeQueryController {
 		this.getTargetLikeCountQueryUseCase = getTargetLikeCountQueryUseCase;
 	}
 
-	// 내가 해당 Target을 좋아요했는가
-	@GetMapping("/me")
+	// 내 좋아요 여부 조회
+	@GetMapping("/{likeType}/{targetUuid}/me")
 	@Operation(summary = "내 좋아요 여부 조회")
 	public ResponseEntity<LikeStatusResponse> getMyLikeStatus(
 			@RequestHeader("X-Member-UUID") UUID memberUuid,
-			@RequestParam String targetType,
-			@RequestParam UUID targetUuid
+			@PathVariable String likeType,
+			@PathVariable String targetUuid
 	) {
-		log.info("LikeQueryController : GET getMyLikeStatus : 내 좋아요 여부 조회 요청 - memberUuid={}, targetUuid={}",
-				memberUuid, targetUuid);
+		log.info("LikeQueryController : GET getMyLikeStatus : 내 좋아요 여부 조회 요청 - memberUuid={}, likeType={}, targetUuid={}",
+				memberUuid, likeType, targetUuid);
 		LikeStatusResponse response = LikeStatusResponse.from(getMyLikeStatusQueryUseCase.get(
-				new GetMyLikeStatusQuery(memberUuid, LikeType.from(targetType), targetUuid)
+				new GetMyLikeStatusQuery(
+						memberUuid,
+						LikeType.from(likeType),
+						LikeCommonValidator.parseUuid(targetUuid, "대상 식별자가 올바르지 않습니다.")
+				)
 		));
 		return ResponseEntity.ok(response);
 	}
 
-	// Target 좋아요 Count
-	@GetMapping("/count")
+	// 대상 좋아요 수 조회
+	@GetMapping("/{likeType}/{targetUuid}/count")
 	@Operation(summary = "대상 좋아요 수 조회")
 	public ResponseEntity<LikeCountResponse> getTargetLikeCount(
-			@RequestParam String targetType,
-			@RequestParam UUID targetUuid
+			@PathVariable String likeType,
+			@PathVariable String targetUuid
 	) {
-		log.info("LikeQueryController : GET getTargetLikeCount : 대상 좋아요 수 조회 요청 - targetUuid={}", targetUuid);
+		log.info("LikeQueryController : GET getTargetLikeCount : 대상 좋아요 수 조회 요청 - likeType={}, targetUuid={}",
+				likeType, targetUuid);
 		LikeCountResponse response = LikeCountResponse.from(getTargetLikeCountQueryUseCase.get(
-				new GetTargetLikeCountQuery(LikeType.from(targetType), targetUuid)
+				new GetTargetLikeCountQuery(
+						LikeType.from(likeType),
+						LikeCommonValidator.parseUuid(targetUuid, "대상 식별자가 올바르지 않습니다.")
+				)
 		));
 		return ResponseEntity.ok(response);
 	}
-
 }
