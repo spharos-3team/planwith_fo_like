@@ -6,19 +6,35 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.planwith.planwith_fo_like.application.port.in.ApplyLikeCountUseCase;
 
-final class LikeCountTestSupport {
+public final class LikeCountTestSupport {
 
 	private LikeCountTestSupport() {
 	}
 
-	static void applyOutboxEvents(
+	public static void applyOutboxEvents(
 			JdbcTemplate jdbcTemplate,
 			LikeEventPayloadReader payloadReader,
 			ApplyLikeCountUseCase applyLikeCountUseCase
 	) {
-		List<String> payloads = jdbcTemplate.queryForList("select payload from like_outbox", String.class);
+		applyOutboxEventsContaining(jdbcTemplate, payloadReader, applyLikeCountUseCase, "");
+	}
+
+	public static int applyOutboxEventsContaining(
+			JdbcTemplate jdbcTemplate,
+			LikeEventPayloadReader payloadReader,
+			ApplyLikeCountUseCase applyLikeCountUseCase,
+			String token
+	) {
+		List<String> payloads = token == null || token.isBlank()
+				? jdbcTemplate.queryForList("select payload from like_outbox", String.class)
+				: jdbcTemplate.queryForList(
+						"select payload from like_outbox where payload like ? order by occurred_at asc, outbox_id asc",
+						String.class,
+						"%" + token + "%"
+				);
 		for (String payload : payloads) {
 			applyLikeCountUseCase.apply(payloadReader.read(payload));
 		}
+		return payloads.size();
 	}
 }
