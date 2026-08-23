@@ -5,13 +5,13 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.planwith.planwith_fo_like.adapter.in.web.dto.LikeCommandRequest;
 import com.planwith.planwith_fo_like.adapter.in.web.dto.LikeCommandResponse;
 import com.planwith.planwith_fo_like.application.command.AddLikeCommand;
 import com.planwith.planwith_fo_like.application.command.RemoveLikeCommand;
@@ -22,7 +22,6 @@ import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -41,43 +40,74 @@ public class LikeCommandController {
 	}
 
 	// 좋아요
-	@PostMapping
+	@PutMapping("/{likeType}/{targetUuid}")
 	@Operation(summary = "좋아요")
 	public ResponseEntity<LikeCommandResponse> addLike(
 			@RequestHeader("X-Member-UUID") UUID memberUuid,
-			@Valid @RequestBody LikeCommandRequest request
+			@PathVariable String likeType,
+			@PathVariable String targetUuid,
+			@RequestParam(required = false) String targetOwnerUuid
 	) {
-		log.info("LikeCommandController : POST addLike : 좋아요 요청 - memberUuid={}, targetUuid={}",
-				memberUuid, request.targetUuid());
-		LikeCommandResponse response = LikeCommandResponse.from(addLikeUseCase.add(new AddLikeCommand(
+		log.info("LikeCommandController : PUT addLike : 좋아요 요청 - memberUuid={}, likeType={}, targetUuid={}",
+				memberUuid, likeType, targetUuid);
+		LikeCommandResponse response = LikeCommandResponse.from(addLikeUseCase.add(toAddCommand(
 				memberUuid,
-				LikeType.from(request.targetType()),
-				LikeCommonValidator.parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
-				LikeCommonValidator.parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
+				likeType,
+				targetUuid,
+				targetOwnerUuid
 		)));
-		log.info("LikeCommandController : POST addLike : 좋아요 응답 - memberUuid={}, alreadyApplied={}",
+		log.info("LikeCommandController : PUT addLike : 좋아요 응답 - memberUuid={}, alreadyApplied={}",
 				memberUuid, response.alreadyApplied());
 		return ResponseEntity.ok(response);
 	}
 
 	// 좋아요 취소
-	@DeleteMapping
+	@DeleteMapping("/{likeType}/{targetUuid}")
 	@Operation(summary = "좋아요 취소")
 	public ResponseEntity<LikeCommandResponse> removeLike(
 			@RequestHeader("X-Member-UUID") UUID memberUuid,
-			@Valid @RequestBody LikeCommandRequest request
+			@PathVariable String likeType,
+			@PathVariable String targetUuid,
+			@RequestParam(required = false) String targetOwnerUuid
 	) {
-		log.info("LikeCommandController : DELETE removeLike : 좋아요 취소 요청 - memberUuid={}, targetUuid={}",
-				memberUuid, request.targetUuid());
-		LikeCommandResponse response = LikeCommandResponse.from(removeLikeUseCase.remove(new RemoveLikeCommand(
+		log.info("LikeCommandController : DELETE removeLike : 좋아요 취소 요청 - memberUuid={}, likeType={}, targetUuid={}",
+				memberUuid, likeType, targetUuid);
+		LikeCommandResponse response = LikeCommandResponse.from(removeLikeUseCase.remove(toRemoveCommand(
 				memberUuid,
-				LikeType.from(request.targetType()),
-				LikeCommonValidator.parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
-				LikeCommonValidator.parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
+				likeType,
+				targetUuid,
+				targetOwnerUuid
 		)));
 		log.info("LikeCommandController : DELETE removeLike : 좋아요 취소 응답 - memberUuid={}, alreadyApplied={}",
 				memberUuid, response.alreadyApplied());
 		return ResponseEntity.ok(response);
 	}
 
+	private static AddLikeCommand toAddCommand(
+			UUID memberUuid,
+			String likeType,
+			String targetUuid,
+			String targetOwnerUuid
+	) {
+		return new AddLikeCommand(
+				memberUuid,
+				LikeType.from(likeType),
+				LikeCommonValidator.parseUuid(targetUuid, "대상 식별자가 올바르지 않습니다."),
+				LikeCommonValidator.parseOptionalUuid(targetOwnerUuid, "대상 작성자 식별자가 올바르지 않습니다.")
+		);
+	}
+
+	private static RemoveLikeCommand toRemoveCommand(
+			UUID memberUuid,
+			String likeType,
+			String targetUuid,
+			String targetOwnerUuid
+	) {
+		return new RemoveLikeCommand(
+				memberUuid,
+				LikeType.from(likeType),
+				LikeCommonValidator.parseUuid(targetUuid, "대상 식별자가 올바르지 않습니다."),
+				LikeCommonValidator.parseOptionalUuid(targetOwnerUuid, "대상 작성자 식별자가 올바르지 않습니다.")
+		);
+	}
 }

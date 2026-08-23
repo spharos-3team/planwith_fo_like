@@ -51,12 +51,7 @@ public class AddLikeService implements AddLikeUseCase {
 
 	@Override
 	public LikeCommandResult add(AddLikeCommand command) {
-		LikeCommonValidator.validateCommand(
-				command.memberUuid(),
-				command.likeType(),
-				command.targetUuid(),
-				command.targetOwnerUuid()
-		);
+		LikeCommonValidator.validate(command.memberUuid(), command.likeType(), command.targetUuid());
 		log.info("AddLikeService : add : 좋아요 처리 시작 - memberUuid={}, likeType={}, targetUuid={}",
 				command.memberUuid(), command.likeType(), command.targetUuid());
 		likeHotCachePort.tryAcquireDuplicateGuard(command.memberUuid(), command.likeType(), command.targetUuid());

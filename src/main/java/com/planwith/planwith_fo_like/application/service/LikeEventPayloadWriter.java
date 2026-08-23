@@ -60,7 +60,7 @@ public class LikeEventPayloadWriter {
 		payload.put("eventUuid", eventUuid.toString());
 		payload.put("targetType", targetType);
 		payload.put("targetUuid", targetUuid.toString());
-		payload.put("targetOwnerUuid", targetOwnerUuid.toString());
+		payload.put("targetOwnerUuid", targetOwnerUuid == null ? null : targetOwnerUuid.toString());
 		payload.put("likerUuid", likerUuid.toString());
 		payload.put("occurredAt", DateTimeFormatter.ISO_INSTANT.format(occurredAt));
 		payload.put("sourceVersion", sourceVersion);
