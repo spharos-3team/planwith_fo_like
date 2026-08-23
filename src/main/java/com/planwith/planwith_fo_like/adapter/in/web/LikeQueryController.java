@@ -15,7 +15,6 @@ import com.planwith.planwith_fo_like.application.port.in.GetMyLikeStatusQueryUse
 import com.planwith.planwith_fo_like.application.port.in.GetTargetLikeCountQueryUseCase;
 import com.planwith.planwith_fo_like.application.query.GetMyLikeStatusQuery;
 import com.planwith.planwith_fo_like.application.query.GetTargetLikeCountQuery;
-import com.planwith.planwith_fo_like.domain.exception.InvalidLikeTargetException;
 import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,7 +49,7 @@ public class LikeQueryController {
 		log.info("LikeQueryController : GET getMyLikeStatus : 내 좋아요 여부 조회 요청 - memberUuid={}, targetUuid={}",
 				memberUuid, targetUuid);
 		LikeStatusResponse response = LikeStatusResponse.from(getMyLikeStatusQueryUseCase.get(
-				new GetMyLikeStatusQuery(memberUuid, parseLikeType(targetType), targetUuid)
+				new GetMyLikeStatusQuery(memberUuid, LikeType.from(targetType), targetUuid)
 		));
 		return ResponseEntity.ok(response);
 	}
@@ -64,16 +63,9 @@ public class LikeQueryController {
 	) {
 		log.info("LikeQueryController : GET getTargetLikeCount : 대상 좋아요 수 조회 요청 - targetUuid={}", targetUuid);
 		LikeCountResponse response = LikeCountResponse.from(getTargetLikeCountQueryUseCase.get(
-				new GetTargetLikeCountQuery(parseLikeType(targetType), targetUuid)
+				new GetTargetLikeCountQuery(LikeType.from(targetType), targetUuid)
 		));
 		return ResponseEntity.ok(response);
 	}
 
-	private static LikeType parseLikeType(String rawType) {
-		try {
-			return LikeType.valueOf(rawType.trim().toUpperCase());
-		} catch (RuntimeException exception) {
-			throw new InvalidLikeTargetException("지원하지 않는 좋아요 대상 타입입니다.");
-		}
-	}
 }

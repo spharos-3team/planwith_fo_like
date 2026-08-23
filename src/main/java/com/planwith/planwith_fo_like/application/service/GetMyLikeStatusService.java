@@ -8,6 +8,7 @@ import com.planwith.planwith_fo_like.application.port.out.LikeHotCachePort;
 import com.planwith.planwith_fo_like.application.port.out.LikeManagementPort;
 import com.planwith.planwith_fo_like.application.query.GetMyLikeStatusQuery;
 import com.planwith.planwith_fo_like.application.query.LikeStatusView;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +27,7 @@ public class GetMyLikeStatusService implements GetMyLikeStatusQueryUseCase {
 	@Override
 	@Transactional(readOnly = true)
 	public LikeStatusView get(GetMyLikeStatusQuery query) {
+		LikeCommonValidator.validate(query.memberUuid(), query.likeType(), query.targetUuid());
 		log.debug("GetMyLikeStatusService : get : 내 좋아요 여부 조회 - memberUuid={}, likeType={}, targetUuid={}",
 				query.memberUuid(), query.likeType(), query.targetUuid());
 		boolean liked = likeHotCachePort.findLiked(query.memberUuid(), query.likeType(), query.targetUuid())

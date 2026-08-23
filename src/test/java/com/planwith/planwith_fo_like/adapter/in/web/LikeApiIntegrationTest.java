@@ -76,5 +76,95 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0))
 				.andExpect(jsonPath("$.alreadyApplied").value(false));
+
+		mockMvc.perform(post("/api/v1/likes")
+						.header("X-Member-UUID", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.liked").value(true))
+				.andExpect(jsonPath("$.likeCount").value(1))
+				.andExpect(jsonPath("$.alreadyApplied").value(false));
+	}
+
+	@Test
+	void rejectsUnsupportedLikeTypeAndInvalidUuid() throws Exception {
+		UUID memberUuid = UUID.randomUUID();
+		UUID ownerUuid = UUID.randomUUID();
+
+		mockMvc.perform(post("/api/v1/likes")
+						.header("X-Member-UUID", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "targetType": "PLAN",
+								  "targetUuid": "%s",
+								  "targetOwnerUuid": "%s"
+								}
+								""".formatted(UUID.randomUUID(), ownerUuid)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TYPE"));
+
+		mockMvc.perform(post("/api/v1/likes")
+						.header("X-Member-UUID", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "targetType": "STORY",
+								  "targetUuid": "not-uuid",
+								  "targetOwnerUuid": "%s"
+								}
+								""".formatted(ownerUuid)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TARGET"));
+
+		mockMvc.perform(post("/api/v1/likes")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "targetType": "STORY",
+								  "targetUuid": "%s",
+								  "targetOwnerUuid": "%s"
+								}
+								""".formatted(UUID.randomUUID(), ownerUuid)))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+	}
+
+	@Test
+	void storyAndCommentLikesAreValidatedIndependently() throws Exception {
+		UUID memberUuid = UUID.randomUUID();
+		UUID targetUuid = UUID.randomUUID();
+		UUID ownerUuid = UUID.randomUUID();
+		String storyBody = """
+				{
+				  "targetType": "STORY",
+				  "targetUuid": "%s",
+				  "targetOwnerUuid": "%s"
+				}
+				""".formatted(targetUuid, ownerUuid);
+		String commentBody = """
+				{
+				  "targetType": "COMMENT",
+				  "targetUuid": "%s",
+				  "targetOwnerUuid": "%s"
+				}
+				""".formatted(targetUuid, ownerUuid);
+
+		mockMvc.perform(post("/api/v1/likes")
+						.header("X-Member-UUID", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(storyBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.likeType").value("STORY"))
+				.andExpect(jsonPath("$.likeCount").value(1));
+
+		mockMvc.perform(post("/api/v1/likes")
+						.header("X-Member-UUID", memberUuid)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(commentBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.likeType").value("COMMENT"))
+				.andExpect(jsonPath("$.likeCount").value(1));
 	}
 }

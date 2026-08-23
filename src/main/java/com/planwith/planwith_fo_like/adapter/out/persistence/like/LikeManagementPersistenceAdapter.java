@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_like.application.port.out.LikeManagementPort;
 import com.planwith.planwith_fo_like.domain.exception.DuplicateLikeException;
+import com.planwith.planwith_fo_like.domain.exception.InvalidLikeTargetException;
 import com.planwith.planwith_fo_like.domain.model.LikeManagement;
 import com.planwith.planwith_fo_like.domain.model.LikeType;
 
@@ -28,27 +29,6 @@ public class LikeManagementPersistenceAdapter implements LikeManagementPort {
 	@Override
 	@Transactional
 	public LikeManagement insert(LikeManagement like) {
-		Optional<LikeManagementJpaEntity> existing = repository.findByMemberUuidAndLikeTypeAndTargetUuid(
-				like.memberUuid(),
-				like.likeType(),
-				like.targetUuid()
-		);
-		if (existing.isPresent()) {
-			LikeManagementJpaEntity entity = existing.get();
-			LikeManagement current = LikePersistenceMapper.toDomain(entity);
-			if (current.isActive()) {
-				log.info(
-						"LikeManagementPersistenceAdapter : insert : 활성 좋아요 UNIQUE 중복 - memberUuid={}, likeType={}, targetUuid={}",
-						like.memberUuid(),
-						like.likeType(),
-						like.targetUuid()
-				);
-				throw new DuplicateLikeException();
-			}
-			current.restoreDeleted(like.updatedAt());
-			entity.apply(current.updatedAt(), current.deletedAt());
-			return LikePersistenceMapper.toDomain(repository.saveAndFlush(entity));
-		}
 		try {
 			LikeManagementJpaEntity saved = repository.saveAndFlush(LikePersistenceMapper.toEntity(like));
 			return LikePersistenceMapper.toDomain(saved);
@@ -61,6 +41,36 @@ public class LikeManagementPersistenceAdapter implements LikeManagementPort {
 			);
 			throw new DuplicateLikeException();
 		}
+	}
+
+	@Override
+	@Transactional
+	public LikeManagement restoreDeleted(LikeManagement like, Instant now) {
+		LikeManagementJpaEntity entity = repository.findByMemberUuidAndLikeTypeAndTargetUuid(
+				like.memberUuid(),
+				like.likeType(),
+				like.targetUuid()
+		).orElseThrow(() -> new InvalidLikeTargetException("복원할 좋아요가 없습니다."));
+		LikeManagement current = LikePersistenceMapper.toDomain(entity);
+		if (current.isActive()) {
+			log.info(
+					"LikeManagementPersistenceAdapter : restoreDeleted : 활성 좋아요 UNIQUE 중복 - memberUuid={}, likeType={}, targetUuid={}",
+					like.memberUuid(),
+					like.likeType(),
+					like.targetUuid()
+			);
+			throw new DuplicateLikeException();
+		}
+		current.restoreDeleted(now);
+		entity.apply(current.updatedAt(), current.deletedAt());
+		return LikePersistenceMapper.toDomain(repository.saveAndFlush(entity));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<LikeManagement> findByMemberAndTarget(UUID memberUuid, LikeType likeType, UUID targetUuid) {
+		return repository.findByMemberUuidAndLikeTypeAndTargetUuid(memberUuid, likeType, targetUuid)
+				.map(LikePersistenceMapper::toDomain);
 	}
 
 	@Override

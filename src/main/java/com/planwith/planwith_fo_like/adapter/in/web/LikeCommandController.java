@@ -17,8 +17,8 @@ import com.planwith.planwith_fo_like.application.command.AddLikeCommand;
 import com.planwith.planwith_fo_like.application.command.RemoveLikeCommand;
 import com.planwith.planwith_fo_like.application.port.in.AddLikeUseCase;
 import com.planwith.planwith_fo_like.application.port.in.RemoveLikeUseCase;
-import com.planwith.planwith_fo_like.domain.exception.InvalidLikeTargetException;
 import com.planwith.planwith_fo_like.domain.model.LikeType;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,9 +51,9 @@ public class LikeCommandController {
 				memberUuid, request.targetUuid());
 		LikeCommandResponse response = LikeCommandResponse.from(addLikeUseCase.add(new AddLikeCommand(
 				memberUuid,
-				parseLikeType(request.targetType()),
-				parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
-				parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
+				LikeType.from(request.targetType()),
+				LikeCommonValidator.parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
+				LikeCommonValidator.parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
 		)));
 		log.info("LikeCommandController : POST addLike : 좋아요 응답 - memberUuid={}, alreadyApplied={}",
 				memberUuid, response.alreadyApplied());
@@ -71,28 +71,13 @@ public class LikeCommandController {
 				memberUuid, request.targetUuid());
 		LikeCommandResponse response = LikeCommandResponse.from(removeLikeUseCase.remove(new RemoveLikeCommand(
 				memberUuid,
-				parseLikeType(request.targetType()),
-				parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
-				parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
+				LikeType.from(request.targetType()),
+				LikeCommonValidator.parseUuid(request.targetUuid(), "대상 식별자가 올바르지 않습니다."),
+				LikeCommonValidator.parseUuid(request.targetOwnerUuid(), "대상 작성자 식별자가 올바르지 않습니다.")
 		)));
 		log.info("LikeCommandController : DELETE removeLike : 좋아요 취소 응답 - memberUuid={}, alreadyApplied={}",
 				memberUuid, response.alreadyApplied());
 		return ResponseEntity.ok(response);
 	}
 
-	private static LikeType parseLikeType(String rawType) {
-		try {
-			return LikeType.valueOf(rawType.trim().toUpperCase());
-		} catch (IllegalArgumentException exception) {
-			throw new InvalidLikeTargetException("지원하지 않는 좋아요 대상 타입입니다.");
-		}
-	}
-
-	private static UUID parseUuid(String rawUuid, String message) {
-		try {
-			return UUID.fromString(rawUuid);
-		} catch (IllegalArgumentException exception) {
-			throw new InvalidLikeTargetException(message);
-		}
-	}
 }

@@ -19,8 +19,9 @@ import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
 import com.planwith.planwith_fo_like.domain.event.LikeEventType;
 import com.planwith.planwith_fo_like.domain.event.LikeRemovedEvent;
 import com.planwith.planwith_fo_like.domain.model.LikeManagement;
+import com.planwith.planwith_fo_like.domain.model.LikeManagementStatus;
 import com.planwith.planwith_fo_like.domain.model.LikeTargetCounter;
-import com.planwith.planwith_fo_like.domain.service.LikeTargetValidator;
+import com.planwith.planwith_fo_like.domain.service.LikeCommonValidator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,17 +57,36 @@ public class RemoveLikeService implements RemoveLikeUseCase {
 	@Override
 	@Transactional
 	public LikeCommandResult remove(RemoveLikeCommand command) {
-		LikeTargetValidator.validate(command.memberUuid(), command.likeType(), command.targetUuid());
+		LikeCommonValidator.validateCommand(
+				command.memberUuid(),
+				command.likeType(),
+				command.targetUuid(),
+				command.targetOwnerUuid()
+		);
 		log.info("RemoveLikeService : remove : 좋아요 취소 처리 시작 - memberUuid={}, likeType={}, targetUuid={}",
 				command.memberUuid(), command.likeType(), command.targetUuid());
 
 		Instant now = clock.instant();
-		Optional<LikeManagement> deleted = likeManagementPort.markDeletedByMemberAndTarget(
+		Optional<LikeManagement> existing = likeManagementPort.findByMemberAndTarget(
 				command.memberUuid(),
 				command.likeType(),
-				command.targetUuid(),
-				now
+				command.targetUuid()
 		);
+		LikeManagementStatus status = LikeCommonValidator.resolveStatus(existing);
+		log.info(
+				"RemoveLikeService : remove : 좋아요 상태 판정 - status={}, memberUuid={}, likeType={}, targetUuid={}",
+				status,
+				command.memberUuid(),
+				command.likeType(),
+				command.targetUuid()
+		);
+		Optional<LikeManagement> deleted = LikeCommonValidator.requireUnlikeable(existing)
+				.flatMap(like -> likeManagementPort.markDeletedByMemberAndTarget(
+						command.memberUuid(),
+						command.likeType(),
+						command.targetUuid(),
+						now
+				));
 		if (deleted.isEmpty()) {
 			long likeCount = currentCount(command);
 			refreshHotCache(command, likeCount);
