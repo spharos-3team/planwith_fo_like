@@ -21,7 +21,7 @@ import com.planwith.planwith_fo_like.application.port.in.AddLikeUseCase;
 import com.planwith.planwith_fo_like.application.port.in.GetTargetLikeCountQueryUseCase;
 import com.planwith.planwith_fo_like.application.query.GetTargetLikeCountQuery;
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -38,7 +38,7 @@ class LikeConcurrencyIntegrationTest {
 		UUID memberUuid = UUID.randomUUID();
 		UUID targetUuid = UUID.randomUUID();
 		UUID ownerUuid = UUID.randomUUID();
-		AddLikeCommand command = new AddLikeCommand(memberUuid, TargetType.COMMENT, targetUuid, ownerUuid);
+		AddLikeCommand command = new AddLikeCommand(memberUuid, LikeType.COMMENT, targetUuid, ownerUuid);
 
 		int threadCount = 12;
 		ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -64,7 +64,7 @@ class LikeConcurrencyIntegrationTest {
 			assertThat(results).hasSize(threadCount);
 			assertThat(results).allMatch(LikeCommandResult::liked);
 			assertThat(results.stream().filter(result -> !result.alreadyApplied()).count()).isEqualTo(1);
-			assertThat(getTargetLikeCountQueryUseCase.get(new GetTargetLikeCountQuery(TargetType.COMMENT, targetUuid))
+			assertThat(getTargetLikeCountQueryUseCase.get(new GetTargetLikeCountQuery(LikeType.COMMENT, targetUuid))
 					.likeCount()).isEqualTo(1);
 		} finally {
 			executor.shutdownNow();

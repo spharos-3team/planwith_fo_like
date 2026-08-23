@@ -3,14 +3,14 @@ package com.planwith.planwith_fo_like.adapter.in.web.dto;
 import java.util.UUID;
 
 import com.planwith.planwith_fo_like.application.query.LikeCommandResult;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "좋아요 명령 응답")
 public record LikeCommandResponse(
 		UUID memberUuid,
-		TargetType targetType,
+		LikeType likeType,
 		UUID targetUuid,
 		boolean liked,
 		long likeCount,
@@ -20,7 +20,7 @@ public record LikeCommandResponse(
 	public static LikeCommandResponse from(LikeCommandResult result) {
 		return new LikeCommandResponse(
 				result.memberUuid(),
-				result.targetType(),
+				result.likeType(),
 				result.targetUuid(),
 				result.liked(),
 				result.likeCount(),

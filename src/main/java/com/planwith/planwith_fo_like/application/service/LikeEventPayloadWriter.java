@@ -26,7 +26,7 @@ public class LikeEventPayloadWriter {
 	public String writeCreated(LikeCreatedEvent event) {
 		return write(toMap(
 				event.eventUuid(),
-				event.targetType().name(),
+				event.likeType().name(),
 				event.targetUuid(),
 				event.targetOwnerUuid(),
 				event.likerUuid(),
@@ -38,7 +38,7 @@ public class LikeEventPayloadWriter {
 	public String writeRemoved(LikeRemovedEvent event) {
 		return write(toMap(
 				event.eventUuid(),
-				event.targetType().name(),
+				event.likeType().name(),
 				event.targetUuid(),
 				event.targetOwnerUuid(),
 				event.likerUuid(),

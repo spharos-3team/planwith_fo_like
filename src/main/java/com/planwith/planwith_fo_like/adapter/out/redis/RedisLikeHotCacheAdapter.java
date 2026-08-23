@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.planwith.planwith_fo_like.application.port.out.LikeHotCachePort;
 import com.planwith.planwith_fo_like.config.LikeCacheProperties;
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +31,7 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 	}
 
 	@Override
-	public boolean tryAcquireDuplicateGuard(UUID memberUuid, TargetType targetType, UUID targetUuid) {
+	public boolean tryAcquireDuplicateGuard(UUID memberUuid, LikeType targetType, UUID targetUuid) {
 		try {
 			Boolean acquired = redisTemplate.opsForValue().setIfAbsent(
 					properties.guardKey(memberUuid, targetType, targetUuid),
@@ -52,7 +52,7 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 	}
 
 	@Override
-	public void releaseDuplicateGuard(UUID memberUuid, TargetType targetType, UUID targetUuid) {
+	public void releaseDuplicateGuard(UUID memberUuid, LikeType targetType, UUID targetUuid) {
 		try {
 			redisTemplate.delete(properties.guardKey(memberUuid, targetType, targetUuid));
 		} catch (RuntimeException exception) {
@@ -61,7 +61,7 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 	}
 
 	@Override
-	public Optional<Boolean> findLiked(UUID memberUuid, TargetType targetType, UUID targetUuid) {
+	public Optional<Boolean> findLiked(UUID memberUuid, LikeType targetType, UUID targetUuid) {
 		try {
 			String value = redisTemplate.opsForValue().get(properties.stateKey(memberUuid, targetType, targetUuid));
 			if (value == null) {
@@ -75,17 +75,17 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 	}
 
 	@Override
-	public void markLiked(UUID memberUuid, TargetType targetType, UUID targetUuid) {
+	public void markLiked(UUID memberUuid, LikeType targetType, UUID targetUuid) {
 		writeState(memberUuid, targetType, targetUuid, LIKED);
 	}
 
 	@Override
-	public void markUnliked(UUID memberUuid, TargetType targetType, UUID targetUuid) {
+	public void markUnliked(UUID memberUuid, LikeType targetType, UUID targetUuid) {
 		writeState(memberUuid, targetType, targetUuid, UNLIKED);
 	}
 
 	@Override
-	public Optional<Long> findCount(TargetType targetType, UUID targetUuid) {
+	public Optional<Long> findCount(LikeType targetType, UUID targetUuid) {
 		try {
 			String value = redisTemplate.opsForValue().get(properties.countKey(targetType, targetUuid));
 			if (value == null || value.isBlank()) {
@@ -100,7 +100,7 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 	}
 
 	@Override
-	public void saveCount(TargetType targetType, UUID targetUuid, long likeCount) {
+	public void saveCount(LikeType targetType, UUID targetUuid, long likeCount) {
 		try {
 			redisTemplate.opsForValue().set(
 					properties.countKey(targetType, targetUuid),
@@ -112,7 +112,7 @@ public class RedisLikeHotCacheAdapter implements LikeHotCachePort {
 		}
 	}
 
-	private void writeState(UUID memberUuid, TargetType targetType, UUID targetUuid, String value) {
+	private void writeState(UUID memberUuid, LikeType targetType, UUID targetUuid, String value) {
 		try {
 			redisTemplate.opsForValue().set(
 					properties.stateKey(memberUuid, targetType, targetUuid),

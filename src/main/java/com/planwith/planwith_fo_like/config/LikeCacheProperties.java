@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import com.planwith.planwith_fo_like.domain.model.TargetType;
+import com.planwith.planwith_fo_like.domain.model.LikeType;
 
 @ConfigurationProperties(prefix = "like.cache")
 public class LikeCacheProperties {
@@ -38,15 +38,15 @@ public class LikeCacheProperties {
 		this.guardTtl = guardTtl;
 	}
 
-	public String stateKey(UUID memberUuid, TargetType targetType, UUID targetUuid) {
-		return keyPrefix + ":state:" + targetType.name() + ":" + targetUuid + ":" + memberUuid;
+	public String stateKey(UUID memberUuid, LikeType likeType, UUID targetUuid) {
+		return keyPrefix + ":state:" + likeType.name() + ":" + targetUuid + ":" + memberUuid;
 	}
 
-	public String countKey(TargetType targetType, UUID targetUuid) {
-		return keyPrefix + ":count:" + targetType.name() + ":" + targetUuid;
+	public String countKey(LikeType likeType, UUID targetUuid) {
+		return keyPrefix + ":count:" + likeType.name() + ":" + targetUuid;
 	}
 
-	public String guardKey(UUID memberUuid, TargetType targetType, UUID targetUuid) {
-		return keyPrefix + ":guard:" + targetType.name() + ":" + targetUuid + ":" + memberUuid;
+	public String guardKey(UUID memberUuid, LikeType likeType, UUID targetUuid) {
+		return keyPrefix + ":guard:" + likeType.name() + ":" + targetUuid + ":" + memberUuid;
 	}
 }
