@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:classpath:application.local.yaml
   application:
     name: planwith-fo-like
   datasource:
