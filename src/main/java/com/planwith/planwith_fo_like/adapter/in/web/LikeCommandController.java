@@ -41,7 +41,7 @@ public class LikeCommandController {
 
 	// 좋아요
 	@PutMapping("/{likeType}/{targetUuid}")
-	@Operation(summary = "좋아요")
+	@Operation(summary = "좋아요", description = "프론트 Optimistic UI는 클릭 직후 수를 +1 하고, 이 API 실패 시 이전 값으로 롤백한다.")
 	public ResponseEntity<LikeCommandResponse> addLike(
 			@RequestHeader("X-Member-UUID") UUID memberUuid,
 			@PathVariable String likeType,
@@ -63,7 +63,7 @@ public class LikeCommandController {
 
 	// 좋아요 취소
 	@DeleteMapping("/{likeType}/{targetUuid}")
-	@Operation(summary = "좋아요 취소")
+	@Operation(summary = "좋아요 취소", description = "프론트 Optimistic UI는 클릭 직후 수를 -1 하고, 이 API 실패 시 이전 값으로 롤백한다.")
 	public ResponseEntity<LikeCommandResponse> removeLike(
 			@RequestHeader("X-Member-UUID") UUID memberUuid,
 			@PathVariable String likeType,
