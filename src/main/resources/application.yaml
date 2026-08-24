@@ -69,6 +69,7 @@ springdoc:
 app:
   gateway:
     public-url: ${GATEWAY_PUBLIC_URL:/}
+    auth-header-mapping-enabled: ${GATEWAY_AUTH_HEADER_MAPPING_ENABLED:true}
   auth:
     id: ${LOGIN_ID:test-001}
     pw: ${LOGIN_PASSWORD:1234}

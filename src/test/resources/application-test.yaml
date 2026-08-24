@@ -35,6 +35,10 @@ management:
     redis:
       enabled: false
 
+app:
+  gateway:
+    auth-header-mapping-enabled: false
+
 like:
   kafka:
     consumer-enabled: false
