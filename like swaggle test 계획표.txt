@@ -1,0 +1,699 @@
+Like 서비스 Swagger 테스트 계획표
+
+[테스트 전 준비]
+
+- 로컬 Swagger 접속 경로: http://localhost:8091/swagger-ui.html
+- 현재 Gateway 설정에는 Like API 및 OpenAPI 문서 라우트가 없으므로 로컬 테스트는 Like 서비스 포트(:8091)에서 실행한다.
+- Gateway Swagger(:8000)로 테스트하려면 Gateway에 planwith-fo-like API 라우트, /docs/planwith-fo-like 라우트, Swagger UI URL을 먼저 등록해야 한다.
+- 아래 테스트는 1번부터 순서대로 실행한다.
+- 좋아요 수의 예상값을 정확히 확인하려면 테스트 전에 아래 대상 UUID의 기존 데이터를 삭제하거나 새로운 UUID로 교체한다.
+- 지원하는 likeType은 STORY, COMMENT이다. 대소문자는 구분하지 않지만 계획표에서는 대문자를 사용한다.
+- targetOwnerUuid는 선택값이다.
+
+[공통 테스트 데이터]
+
+회원 UUID: 11111111-1111-1111-1111-111111111111
+대상 작성자 UUID: 22222222-2222-2222-2222-222222222222
+스토리 UUID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+첫 번째 댓글 UUID: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+두 번째 댓글 UUID: cccccccc-cccc-cccc-cccc-cccccccccccc
+
+==================================================
+1. 배포 상태 확인
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: Like 서비스 배포 상태 확인
+HTTP Method: GET
+api 명: /api/planwith-fo-like/deploy-check
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "service": "planwith-fo-like",
+  "marker": "planwith-fo-like-deploy-v1",
+  "message": "planwith-fo-like deploy pipeline ok"
+}
+
+확인 사항:
+- 서비스명, 배포 marker, 배포 확인 메시지가 반환되는지 확인한다.
+- DEPLOY_MARKER 환경변수를 변경했다면 marker는 설정값과 일치해야 한다.
+
+==================================================
+2. 로그인 성공
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 로그인 성공
+HTTP Method: POST
+api 명: /api/planwith-fo-like/login
+
+Request body:
+{
+  "id": "test-001",
+  "pw": "1234"
+}
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "id": "test-001",
+  "message": "로그인에 성공했습니다."
+}
+
+확인 사항:
+- LOGIN_ID 또는 LOGIN_PASSWORD 환경변수를 사용한다면 해당 설정값으로 테스트한다.
+
+==================================================
+3. 로그인 인증 실패
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 잘못된 비밀번호 로그인 거부
+HTTP Method: POST
+api 명: /api/planwith-fo-like/login
+
+Request body:
+{
+  "id": "test-001",
+  "pw": "wrong-password"
+}
+
+예상 HTTP Status: 401 Unauthorized
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 401,
+  "code": "INVALID_CREDENTIALS",
+  "message": "아이디 또는 비밀번호가 올바르지 않습니다."
+}
+
+==================================================
+4. 로그인 입력값 검증 실패
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 빈 아이디 로그인 거부
+HTTP Method: POST
+api 명: /api/planwith-fo-like/login
+
+Request body:
+{
+  "id": "",
+  "pw": "1234"
+}
+
+예상 HTTP Status: 400 Bad Request
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 400,
+  "code": "INVALID_REQUEST",
+  "message": "아이디는 필수입니다."
+}
+
+==================================================
+5. 비회원 스토리 좋아요 스냅샷 초기 조회
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 비회원 화면 좋아요 스냅샷 조회
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": false,
+  "likeCount": 0,
+  "optimisticLikeCount": 1,
+  "optimisticUnlikeCount": 0
+}
+
+확인 사항:
+- 회원 헤더가 없으면 liked는 false여야 한다.
+- 좋아요 수가 0일 때 optimisticUnlikeCount는 음수가 아닌 0이어야 한다.
+
+==================================================
+6. 내 좋아요 여부 조회 시 인증 헤더 누락
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 인증되지 않은 내 좋아요 여부 조회 거부
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/me
+
+Request body:
+없음
+
+예상 HTTP Status: 401 Unauthorized
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 401,
+  "code": "AUTHENTICATION_REQUIRED",
+  "message": "인증이 필요합니다."
+}
+
+==================================================
+7. 스토리 좋아요 등록
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 스토리 좋아요 등록
+HTTP Method: PUT
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?targetOwnerUuid=22222222-2222-2222-2222-222222222222
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": true,
+  "likeCount": 1,
+  "alreadyApplied": false
+}
+
+확인 사항:
+- liked가 true로 변경되는지 확인한다.
+- 최초 요청이므로 alreadyApplied는 false여야 한다.
+
+==================================================
+8. 동일 스토리 중복 좋아요
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 중복 좋아요 멱등 처리
+HTTP Method: PUT
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?targetOwnerUuid=22222222-2222-2222-2222-222222222222
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": true,
+  "likeCount": 1,
+  "alreadyApplied": true
+}
+
+확인 사항:
+- 중복 요청이 오류가 아닌 200으로 처리되는지 확인한다.
+- likeCount가 2로 증가하지 않아야 한다.
+
+==================================================
+9. 내 스토리 좋아요 여부 조회
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 내 좋아요 여부 조회
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/me
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "liked": true
+}
+
+==================================================
+10. 스토리 좋아요 수 조회
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 대상 좋아요 수 조회
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/count
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "likeType": "STORY",
+  "likeCount": 1
+}
+
+==================================================
+11. 회원 스토리 좋아요 스냅샷 조회
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 회원 화면 좋아요 스냅샷 조회
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": true,
+  "likeCount": 1,
+  "optimisticLikeCount": 2,
+  "optimisticUnlikeCount": 0
+}
+
+==================================================
+12. 비회원 스토리 좋아요 스냅샷 조회
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 비회원에게 전체 좋아요 수만 제공
+HTTP Method: GET
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": false,
+  "likeCount": 1,
+  "optimisticLikeCount": 2,
+  "optimisticUnlikeCount": 0
+}
+
+확인 사항:
+- 비회원의 liked는 false지만 전체 likeCount는 1로 유지되어야 한다.
+
+==================================================
+13. 스토리 좋아요 취소
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 스토리 좋아요 취소
+HTTP Method: DELETE
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?targetOwnerUuid=22222222-2222-2222-2222-222222222222
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": false,
+  "likeCount": 0,
+  "alreadyApplied": false
+}
+
+==================================================
+14. 동일 스토리 좋아요 중복 취소
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 중복 좋아요 취소 멱등 처리
+HTTP Method: DELETE
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": false,
+  "likeCount": 0,
+  "alreadyApplied": true
+}
+
+확인 사항:
+- likeCount가 음수가 되지 않아야 한다.
+
+==================================================
+15. 취소한 스토리 재좋아요
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 좋아요 취소 후 재등록
+HTTP Method: PUT
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?targetOwnerUuid=22222222-2222-2222-2222-222222222222
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "STORY",
+  "targetUuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "liked": true,
+  "likeCount": 1,
+  "alreadyApplied": false
+}
+
+==================================================
+16. 댓글 좋아요 등록
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 댓글 좋아요 등록
+HTTP Method: PUT
+api 명: /api/v1/likes/COMMENT/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?targetOwnerUuid=22222222-2222-2222-2222-222222222222
+
+Request body:
+없음
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "memberUuid": "11111111-1111-1111-1111-111111111111",
+  "likeType": "COMMENT",
+  "targetUuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "liked": true,
+  "likeCount": 1,
+  "alreadyApplied": false
+}
+
+확인 사항:
+- 동일한 UUID를 사용하더라도 STORY와 COMMENT 좋아요는 타입별로 독립 처리된다.
+
+==================================================
+17. 댓글 좋아요 스냅샷 일괄 조회
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 댓글 목록 좋아요 스냅샷 일괄 조회
+HTTP Method: POST
+api 명: /api/v1/likes/snapshots
+
+Request body:
+{
+  "likeType": "COMMENT",
+  "targetUuids": [
+    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+  ]
+}
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "snapshots": [
+    {
+      "likeType": "COMMENT",
+      "targetUuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "liked": true,
+      "likeCount": 1,
+      "optimisticLikeCount": 2,
+      "optimisticUnlikeCount": 0
+    },
+    {
+      "likeType": "COMMENT",
+      "targetUuid": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "liked": false,
+      "likeCount": 0,
+      "optimisticLikeCount": 1,
+      "optimisticUnlikeCount": 0
+    }
+  ]
+}
+
+확인 사항:
+- 요청한 순서대로 결과가 반환되는지 확인한다.
+- 한 번에 최대 50개의 서로 다른 대상 UUID만 조회할 수 있다.
+
+==================================================
+18. 비회원 댓글 좋아요 스냅샷 일괄 조회
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 비회원 댓글 목록 좋아요 스냅샷 일괄 조회
+HTTP Method: POST
+api 명: /api/v1/likes/snapshots
+
+Request body:
+{
+  "likeType": "COMMENT",
+  "targetUuids": [
+    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+  ]
+}
+
+예상 HTTP Status: 200 OK
+
+Response body:
+{
+  "snapshots": [
+    {
+      "likeType": "COMMENT",
+      "targetUuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "liked": false,
+      "likeCount": 1,
+      "optimisticLikeCount": 2,
+      "optimisticUnlikeCount": 0
+    }
+  ]
+}
+
+==================================================
+19. 지원하지 않는 좋아요 타입
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 지원하지 않는 좋아요 타입 거부
+HTTP Method: PUT
+api 명: /api/v1/likes/PLAN/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 400 Bad Request
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 400,
+  "code": "INVALID_LIKE_TYPE",
+  "message": "지원하지 않는 좋아요 대상 타입입니다."
+}
+
+==================================================
+20. 잘못된 대상 UUID
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 잘못된 좋아요 대상 UUID 거부
+HTTP Method: PUT
+api 명: /api/v1/likes/STORY/not-uuid
+
+Request body:
+없음
+
+예상 HTTP Status: 400 Bad Request
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 400,
+  "code": "INVALID_LIKE_TARGET",
+  "message": "대상 식별자가 올바르지 않습니다."
+}
+
+==================================================
+21. 좋아요 등록 시 인증 헤더 누락
+==================================================
+
+X-MEMBER-UUID: 없음
+
+기능명: 인증되지 않은 좋아요 등록 거부
+HTTP Method: PUT
+api 명: /api/v1/likes/STORY/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+Request body:
+없음
+
+예상 HTTP Status: 401 Unauthorized
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 401,
+  "code": "AUTHENTICATION_REQUIRED",
+  "message": "인증이 필요합니다."
+}
+
+==================================================
+22. 일괄 조회 대상 목록 누락
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 빈 대상 목록 일괄 조회 거부
+HTTP Method: POST
+api 명: /api/v1/likes/snapshots
+
+Request body:
+{
+  "likeType": "COMMENT",
+  "targetUuids": []
+}
+
+예상 HTTP Status: 400 Bad Request
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 400,
+  "code": "INVALID_REQUEST",
+  "message": "대상 식별자는 필수입니다."
+}
+
+==================================================
+23. 일괄 조회 최대 개수 초과
+==================================================
+
+X-MEMBER-UUID: 11111111-1111-1111-1111-111111111111
+
+기능명: 51개 대상 일괄 조회 거부
+HTTP Method: POST
+api 명: /api/v1/likes/snapshots
+
+Request body:
+{
+  "likeType": "COMMENT",
+  "targetUuids": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002",
+    "00000000-0000-0000-0000-000000000003",
+    "00000000-0000-0000-0000-000000000004",
+    "00000000-0000-0000-0000-000000000005",
+    "00000000-0000-0000-0000-000000000006",
+    "00000000-0000-0000-0000-000000000007",
+    "00000000-0000-0000-0000-000000000008",
+    "00000000-0000-0000-0000-000000000009",
+    "00000000-0000-0000-0000-000000000010",
+    "00000000-0000-0000-0000-000000000011",
+    "00000000-0000-0000-0000-000000000012",
+    "00000000-0000-0000-0000-000000000013",
+    "00000000-0000-0000-0000-000000000014",
+    "00000000-0000-0000-0000-000000000015",
+    "00000000-0000-0000-0000-000000000016",
+    "00000000-0000-0000-0000-000000000017",
+    "00000000-0000-0000-0000-000000000018",
+    "00000000-0000-0000-0000-000000000019",
+    "00000000-0000-0000-0000-000000000020",
+    "00000000-0000-0000-0000-000000000021",
+    "00000000-0000-0000-0000-000000000022",
+    "00000000-0000-0000-0000-000000000023",
+    "00000000-0000-0000-0000-000000000024",
+    "00000000-0000-0000-0000-000000000025",
+    "00000000-0000-0000-0000-000000000026",
+    "00000000-0000-0000-0000-000000000027",
+    "00000000-0000-0000-0000-000000000028",
+    "00000000-0000-0000-0000-000000000029",
+    "00000000-0000-0000-0000-000000000030",
+    "00000000-0000-0000-0000-000000000031",
+    "00000000-0000-0000-0000-000000000032",
+    "00000000-0000-0000-0000-000000000033",
+    "00000000-0000-0000-0000-000000000034",
+    "00000000-0000-0000-0000-000000000035",
+    "00000000-0000-0000-0000-000000000036",
+    "00000000-0000-0000-0000-000000000037",
+    "00000000-0000-0000-0000-000000000038",
+    "00000000-0000-0000-0000-000000000039",
+    "00000000-0000-0000-0000-000000000040",
+    "00000000-0000-0000-0000-000000000041",
+    "00000000-0000-0000-0000-000000000042",
+    "00000000-0000-0000-0000-000000000043",
+    "00000000-0000-0000-0000-000000000044",
+    "00000000-0000-0000-0000-000000000045",
+    "00000000-0000-0000-0000-000000000046",
+    "00000000-0000-0000-0000-000000000047",
+    "00000000-0000-0000-0000-000000000048",
+    "00000000-0000-0000-0000-000000000049",
+    "00000000-0000-0000-0000-000000000050",
+    "00000000-0000-0000-0000-000000000051"
+  ]
+}
+
+예상 HTTP Status: 400 Bad Request
+
+Response body:
+{
+  "timestamp": "<실행 시각>",
+  "status": 400,
+  "code": "INVALID_LIKE_TARGET",
+  "message": "한 번에 조회할 수 있는 좋아요 대상 수를 초과했습니다."
+}
+
+[최종 확인 항목]
+
+- PUT 좋아요 등록과 DELETE 좋아요 취소가 멱등하게 동작하는지 확인한다.
+- STORY와 COMMENT 상태 및 좋아요 수가 독립적으로 관리되는지 확인한다.
+- 회원 스냅샷은 개인 liked 상태를 반환하고, 비회원 스냅샷은 liked=false를 반환하는지 확인한다.
+- likeCount와 optimisticLikeCount/optimisticUnlikeCount가 예상대로 계산되는지 확인한다.
+- 필수 X-Member-UUID 누락 시 401, 도메인 입력 오류 시 400이 반환되는지 확인한다.
+- 일괄 조회가 요청 순서를 유지하고 최대 50개 제한을 적용하는지 확인한다.
+```
