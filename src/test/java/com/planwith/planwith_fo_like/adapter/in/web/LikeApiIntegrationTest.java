@@ -34,7 +34,7 @@ class LikeApiIntegrationTest {
 		String likePath = "/api/v1/likes/STORY/" + targetUuid;
 
 		mockMvc.perform(put(likePath)
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
@@ -43,7 +43,7 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.alreadyApplied").value(false));
 
 		mockMvc.perform(put(likePath)
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
@@ -51,7 +51,7 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.alreadyApplied").value(true));
 
 		mockMvc.perform(get(likePath + "/me")
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true));
 
@@ -62,7 +62,7 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.likeCount").value(1));
 
 		mockMvc.perform(delete(likePath)
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
@@ -70,14 +70,14 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.alreadyApplied").value(false));
 
 		mockMvc.perform(delete(likePath)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0))
 				.andExpect(jsonPath("$.alreadyApplied").value(true));
 
 		mockMvc.perform(put(likePath)
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.param("targetOwnerUuid", ownerUuid.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
@@ -91,12 +91,12 @@ class LikeApiIntegrationTest {
 		UUID targetUuid = UUID.randomUUID();
 
 		mockMvc.perform(put("/api/v1/likes/PLAN/" + targetUuid)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TYPE"));
 
 		mockMvc.perform(put("/api/v1/likes/STORY/not-uuid")
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TARGET"));
 
@@ -111,19 +111,19 @@ class LikeApiIntegrationTest {
 		UUID targetUuid = UUID.randomUUID();
 
 		mockMvc.perform(put("/api/v1/likes/STORY/" + targetUuid)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("STORY"))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
 		mockMvc.perform(put("/api/v1/likes/COMMENT/" + targetUuid)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("COMMENT"))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
 		mockMvc.perform(delete("/api/v1/likes/STORY/" + targetUuid)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0));
@@ -141,7 +141,7 @@ class LikeApiIntegrationTest {
 		String queryBase = "/api/v1/likes/STORY/" + targetUuid;
 
 		mockMvc.perform(get(queryBase + "/me")
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false));
 
@@ -152,11 +152,11 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.likeCount").value(0));
 
 		mockMvc.perform(put(queryBase)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get(queryBase + "/me")
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true));
 
@@ -189,11 +189,11 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.optimisticUnlikeCount").value(0));
 
 		mockMvc.perform(put(storyPath)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get(storyPath)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -201,7 +201,7 @@ class LikeApiIntegrationTest {
 				.andExpect(jsonPath("$.optimisticUnlikeCount").value(0));
 
 		mockMvc.perform(get("/api/v1/likes/COMMENT/" + targetUuid)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("COMMENT"))
 				.andExpect(jsonPath("$.liked").value(false))
@@ -224,11 +224,11 @@ class LikeApiIntegrationTest {
 		UUID secondComment = UUID.randomUUID();
 
 		mockMvc.perform(put("/api/v1/likes/COMMENT/" + firstComment)
-						.header("X-Member-UUID", memberUuid))
+						.header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(post("/api/v1/likes/snapshots")
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"likeType":"COMMENT","targetUuids":["%s","%s"]}
@@ -249,7 +249,7 @@ class LikeApiIntegrationTest {
 			overflow.add(UUID.randomUUID().toString());
 		}
 		mockMvc.perform(post("/api/v1/likes/snapshots")
-						.header("X-Member-UUID", memberUuid)
+						.header("X-Auth-User-Id", memberUuid)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(overflow.toString()))
 				.andExpect(status().isBadRequest())

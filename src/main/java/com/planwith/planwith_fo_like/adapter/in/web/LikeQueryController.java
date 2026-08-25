@@ -58,7 +58,7 @@ public class LikeQueryController {
 	@GetMapping("/{likeType}/{targetUuid}/me")
 	@Operation(summary = "내 좋아요 여부 조회")
 	public ResponseEntity<LikeStatusResponse> getMyLikeStatus(
-			@RequestHeader("X-Member-UUID") UUID memberUuid,
+			@RequestHeader("X-Auth-User-Id") UUID memberUuid,
 			@PathVariable String likeType,
 			@PathVariable String targetUuid
 	) {
@@ -99,10 +99,10 @@ public class LikeQueryController {
 			description = "스토리/댓글 화면 초기 렌더용 liked와 likeCount를 한 번에 반환한다. "
 					+ "Story/Comment 서비스는 Like DB를 조회하지 않는다. "
 					+ "프론트는 optimisticLikeCount/optimisticUnlikeCount로 클릭 직후 수를 즉시 표시하고, "
-					+ "Command API 실패 시 likeCount로 롤백한다. X-Member-UUID가 없으면 liked=false이다."
+					+ "Command API 실패 시 likeCount로 롤백한다. X-Auth-User-Id가 없으면 liked=false이다."
 	)
 	public ResponseEntity<LikeSnapshotResponse> getLikeSnapshot(
-			@RequestHeader(value = "X-Member-UUID", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
 			@PathVariable String likeType,
 			@PathVariable String targetUuid
 	) {
@@ -126,7 +126,7 @@ public class LikeQueryController {
 					+ "한 번에 최대 50건이며 Story/Comment DB 조인은 하지 않는다."
 	)
 	public ResponseEntity<LikeSnapshotBatchResponse> getLikeSnapshots(
-			@RequestHeader(value = "X-Member-UUID", required = false) UUID memberUuid,
+			@RequestHeader(value = "X-Auth-User-Id", required = false) UUID memberUuid,
 			@Valid @RequestBody LikeSnapshotBatchRequest request
 	) {
 		log.info("LikeQueryController : POST getLikeSnapshots : 화면 좋아요 스냅샷 일괄 조회 요청 - memberUuid={}, likeType={}, targetCount={}",

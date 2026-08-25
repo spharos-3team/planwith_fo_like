@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MissingRequestHeaderException.class)
 	public ResponseEntity<ApiErrorResponse> handleMissingHeader(MissingRequestHeaderException exception) {
-		if ("X-Member-UUID".equals(exception.getHeaderName())) {
+		if ("X-Auth-User-Id".equals(exception.getHeaderName())) {
 			return createErrorResponse(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "인증이 필요합니다.");
 		}
 		return createErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "필수 요청 헤더가 없습니다.");

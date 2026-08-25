@@ -51,7 +51,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		UUID targetUuid = UUID.randomUUID();
 		String storyPath = likePath(LikeType.STORY, targetUuid);
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -61,7 +61,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		assertThat(outboxEventCount(targetUuid, LikeEventType.LIKE)).isEqualTo(1);
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isNull();
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -69,7 +69,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		assertThat(outboxEventCount(targetUuid, LikeEventType.LIKE)).isEqualTo(1);
 		assertThat(likeManagementRowCount(memberUuid, LikeType.STORY, targetUuid)).isEqualTo(1);
 
-		mockMvc.perform(get(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -84,7 +84,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isEqualTo(1L);
 		assertThat(inboxCount()).isGreaterThanOrEqualTo(1);
 
-		mockMvc.perform(delete(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(delete(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0))
@@ -95,7 +95,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		applyEvents(targetUuid);
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isZero();
 
-		mockMvc.perform(delete(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(delete(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.alreadyApplied").value(true));
 		assertThat(outboxEventCount(targetUuid, LikeEventType.UNLIKE)).isEqualTo(1);
@@ -108,7 +108,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		));
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isZero();
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1))
@@ -127,13 +127,13 @@ class LikeEndToEndConsistencyIntegrationTest {
 		String storyPath = likePath(LikeType.STORY, targetUuid);
 		String commentPath = likePath(LikeType.COMMENT, targetUuid);
 
-		mockMvc.perform(put(commentPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(commentPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("COMMENT"))
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.likeType").value("STORY"))
 				.andExpect(jsonPath("$.likeCount").value(1));
@@ -142,7 +142,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		assertThat(dbCounter(LikeType.COMMENT, targetUuid)).isEqualTo(1L);
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isEqualTo(1L);
 
-		mockMvc.perform(delete(commentPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(delete(commentPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0));
@@ -160,7 +160,7 @@ class LikeEndToEndConsistencyIntegrationTest {
 		UUID targetUuid = UUID.randomUUID();
 		String storyPath = likePath(LikeType.STORY, targetUuid);
 
-		mockMvc.perform(get(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0))
@@ -169,11 +169,11 @@ class LikeEndToEndConsistencyIntegrationTest {
 		mockMvc.perform(put(storyPath))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
-		mockMvc.perform(put("/api/v1/likes/PLAN/" + targetUuid).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put("/api/v1/likes/PLAN/" + targetUuid).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_LIKE_TYPE"));
 
-		mockMvc.perform(get(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(false))
 				.andExpect(jsonPath("$.likeCount").value(0));
@@ -181,17 +181,17 @@ class LikeEndToEndConsistencyIntegrationTest {
 		assertThat(outboxEventCount(targetUuid, LikeEventType.LIKE)).isZero();
 		assertThat(dbCounter(LikeType.STORY, targetUuid)).isNull();
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1));
 
 		mockMvc.perform(delete(storyPath))
 				.andExpect(status().isUnauthorized());
-		mockMvc.perform(delete("/api/v1/likes/PLAN/" + targetUuid).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(delete("/api/v1/likes/PLAN/" + targetUuid).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isBadRequest());
 
-		mockMvc.perform(get(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1));
@@ -204,16 +204,16 @@ class LikeEndToEndConsistencyIntegrationTest {
 		UUID targetUuid = UUID.randomUUID();
 		String storyPath = likePath(LikeType.STORY, targetUuid);
 
-		mockMvc.perform(put(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(put(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk());
 		applyEvents(targetUuid);
 		likeHotCacheAdapter.clear();
 
-		mockMvc.perform(get(storyPath).header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath).header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true))
 				.andExpect(jsonPath("$.likeCount").value(1));
-		mockMvc.perform(get(storyPath + "/me").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get(storyPath + "/me").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.liked").value(true));
 		mockMvc.perform(get(storyPath + "/count"))
